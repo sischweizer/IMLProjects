@@ -3,8 +3,8 @@
 # First, we import necessary libraries:
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import KFold
-import sklearn.linear_model
+from sklearn.model_selection import KFold, cross_val_score
+from sklearn.linear_model import Ridge
 
 # Add any additional imports here (however, the task is solvable without using 
 # any additional imports)
@@ -29,17 +29,13 @@ def fit(X, y, lam):
     print("fit")
     w = np.zeros((13,))
     # TODO: Enter your code here
-    print(len(y))
-    
     print(lam)
-    rigde = sklearn.linear_model.Ridge(alpha=lam)
+    rigde = Ridge(alpha=lam)
     
-    print("hoi")
     rigde.fit(X,y)
 
-    print("hoi")
+    w = rigde.coef_
 
-    #method = sklearn.<fct_class>.<{loss}>([hyperparams, solver])
     
     #sklearn.linear_model.Ridge(alpha=lam)
 
@@ -63,6 +59,16 @@ def calculate_RMSE(w, X, y):
     """
     RMSE = 0
     # TODO: Enter your code here
+    
+    print(w)
+    pred = np.matmul(X, w)
+    print(pred)
+    error = pred - y 
+    print(error)
+    sq_error = np.square(error)
+    print(sq_error)
+    RMSE = np.mean(sq_error)
+    
     assert np.isscalar(RMSE)
     return RMSE
 
@@ -88,8 +94,39 @@ def average_LR_RMSE(X, y, lambdas, n_folds):
     # TODO: Enter your code here. Hint: Use functions 'fit' and 'calculate_RMSE' with training and test data
     # and fill all entries in the matrix 'RMSE_mat'
     w = []
-    for i in range(0,len(lambdas)):
-        w.append(fit(X, y, lambdas[i]))
+    kf = KFold(n_splits=n_folds)
+    kf.get_n_splits(X)
+    for i, (train_index, test_index) in enumerate(kf.split(X)): 
+        
+        
+        X_split = np.array([X[k] for k in train_index]).reshape(135,13)
+        y_split = np.array([y[k] for k in train_index])
+        
+        ValX_split = np.array([X[k] for k in test_index]).reshape(15,13)
+        Valy_split = np.array([y[k] for k in test_index])
+        
+        #print(X)
+        #print(X_split[0])
+        #print(ValX_split[0])
+        #print(y)
+        #print(y_split)
+        #print(Valy_split)
+        
+        for j in range(0,len(lambdas)):
+            #w.append(fit(X_split, Y_split, lambdas[i]))
+            coef = fit(X_split, y_split, lambdas[j])
+            RMSE_mat[i:j] = calculate_RMSE(coef, ValX_split, Valy_split)
+            
+        
+            
+    
+        #ridge = Ridge(alpha=lambdas[i])
+        #result = cross_val_score(ridge,X,y,scoring="neg_mean_squared_error",cv=n_folds)
+        #print(result)
+        #print(result.transpose())
+        #print(RMSE_mat)
+        #RMSE_mat[i] = result
+        
 
     
 
