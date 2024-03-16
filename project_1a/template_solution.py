@@ -3,7 +3,7 @@
 # First, we import necessary libraries:
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import KFold, cross_val_score
+from sklearn.model_selection import KFold
 from sklearn.linear_model import Ridge
 
 # Add any additional imports here (however, the task is solvable without using 
@@ -30,11 +30,11 @@ def fit(X, y, lam):
     w = np.zeros((13,))
     # TODO: Enter your code here
     print(lam)
-    rigde = Ridge(alpha=lam)
+    ridge = Ridge(alpha=lam,solver="svd")
     
-    rigde.fit(X,y)
+    ridge.fit(X,y)
 
-    w = rigde.coef_
+    w = ridge.coef_
 
     
     #sklearn.linear_model.Ridge(alpha=lam)
@@ -60,14 +60,15 @@ def calculate_RMSE(w, X, y):
     RMSE = 0
     # TODO: Enter your code here
     
-    print(w)
+    #print(w)
     pred = np.matmul(X, w)
-    print(pred)
+    #print(pred)
     error = pred - y 
-    print(error)
+    #error = np.subtract(pred, y) 
+    #print(error)
     sq_error = np.square(error)
-    print(sq_error)
-    RMSE = np.mean(sq_error)
+    #print(sq_error)
+    RMSE = np.sqrt(np.mean(sq_error))
     
     assert np.isscalar(RMSE)
     return RMSE
@@ -95,15 +96,22 @@ def average_LR_RMSE(X, y, lambdas, n_folds):
     # and fill all entries in the matrix 'RMSE_mat'
     w = []
     kf = KFold(n_splits=n_folds)
-    kf.get_n_splits(X)
+    #kf.get_n_splits(X)
     for i, (train_index, test_index) in enumerate(kf.split(X)): 
+    #for i, (train, test) in enumerate(kf.split(X)): 
         
         
-        X_split = np.array([X[k] for k in train_index]).reshape(135,13)
-        y_split = np.array([y[k] for k in train_index])
+        #X_split = np.array([X[k] for k in train_index]).reshape(135,13)
+        #y_split = np.array([y[k] for k in train_index])
         
-        ValX_split = np.array([X[k] for k in test_index]).reshape(15,13)
-        Valy_split = np.array([y[k] for k in test_index])
+        #ValX_split = np.array([X[k] for k in test_index]).reshape(15,13)
+        #Valy_split = np.array([y[k] for k in test_index])
+        
+        X_split = X[train_index]
+        y_split = y[train_index]
+        
+        ValX_split = X[test_index]
+        Valy_split = y[test_index]
         
         #print(X)
         #print(X_split[0])
@@ -112,10 +120,14 @@ def average_LR_RMSE(X, y, lambdas, n_folds):
         #print(y_split)
         #print(Valy_split)
         
-        for j in range(0,len(lambdas)):
+        #for j in range(0,len(lambdas)):
             #w.append(fit(X_split, Y_split, lambdas[i]))
-            coef = fit(X_split, y_split, lambdas[j])
-            RMSE_mat[i:j] = calculate_RMSE(coef, ValX_split, Valy_split)
+            #coef = fit(X_split, y_split, lambdas[j])
+            #RMSE_mat[i,j] = calculate_RMSE(coef, ValX_split, Valy_split)
+            
+        for (j, lan) in enumerate(lambdas):
+            coef = fit(X_split, y_split, lan)
+            RMSE_mat[i,j] = calculate_RMSE(coef, ValX_split, Valy_split)
             
         
             
