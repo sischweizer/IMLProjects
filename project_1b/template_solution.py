@@ -3,6 +3,7 @@
 # First, we import necessary libraries:
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LinearRegression
 
 # Add any additional imports here (however, the task is solvable without using 
 # any additional imports)
@@ -28,6 +29,17 @@ def transform_data(X):
     """
     X_transformed = np.zeros((700, 21))
     # TODO: Enter your code here
+
+    for i, row in enumerate(X):
+        x_i = np.zeros((21,))
+        x_i[0:5] = row
+        x_i[5:10] = np.square(row)
+        x_i[10:15] = np.exp(row)
+        x_i[15:20] = np.cos(row)
+        x_i[20] = 1
+
+        X_transformed[i] = x_i 
+
     assert X_transformed.shape == (700, 21)
     return X_transformed
 
@@ -49,6 +61,10 @@ def fit(X, y):
     w = np.zeros((21,))
     X_transformed = transform_data(X)
     # TODO: Enter your code here
+
+    model = LinearRegression(fit_intercept=False).fit(X_transformed,y)
+    w = model.coef_
+
     assert w.shape == (21,)
     return w
 
