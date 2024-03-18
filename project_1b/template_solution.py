@@ -4,6 +4,9 @@
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import KFold
 
 # Add any additional imports here (however, the task is solvable without using 
 # any additional imports)
@@ -30,6 +33,15 @@ def transform_data(X):
     X_transformed = np.zeros((700, 21))
     # TODO: Enter your code here
 
+    #print(X[0])
+    #print(y[0])
+    
+    #X_n, y_n = normalise(X,y)
+
+    #print("normalise data: ")
+    #print(X_n[0])
+    #print(y_n[0])
+
     for i, row in enumerate(X):
         x_i = np.zeros((21,))
         x_i[0:5] = row
@@ -39,6 +51,8 @@ def transform_data(X):
         x_i[20] = 1
 
         X_transformed[i] = x_i 
+        
+    #print(X_transformed[0])
 
     assert X_transformed.shape == (700, 21)
     return X_transformed
@@ -62,11 +76,49 @@ def fit(X, y):
     X_transformed = transform_data(X)
     # TODO: Enter your code here
 
-    model = LinearRegression(fit_intercept=False).fit(X_transformed,y)
+    '''
+    kf = KFold(n_splits=5)
+    best_validation_loss = 1000000
+    for i, (train, test) in enumerate(kf.split(X_transformed)): 
+            print("CV set ", i)
+            X_train = X_transformed[train]
+            y_train = y[train]
+            
+            X_test = X_transformed[test]
+            y_test = y[test]
+        
+            model = LinearRegression(fit_intercept=False).fit(X_train,y_train)
+            
+            validation_loss = np.sqrt(np.mean(np.square(model.predict(X_test) - y_test)))
+            
+            if (validation_loss < best_validation_loss):
+                best_validation_loss = validation_loss
+                w = model.coef_
+                
+                print("best validation loss: ", validation_loss)
+    '''
+
+    lambdas = [0.1, 0.3, 0.5, 0.7, 1, 2, 5, 10, 20]
+    
+    #for i, lam in enumerate(lambdas)
+
+    model = Ridge(alpha=0.5, fit_intercept=False).fit(X_transformed,y)
+    #model = LinearRegression(fit_intercept=False).fit(X_transformed,y)
     w = model.coef_
+    
+
+    training_error = np.sqrt(np.mean(np.square(np.matmul(X_transformed, w) - y)))
+    print(training_error)
 
     assert w.shape == (21,)
     return w
+
+
+#def normalise(X, y):
+    #std = StandardScaler()
+    #data = np.concatenate((X, y.reshape((len(y), 1))), axis=1)
+    #std.fit(data)
+    #return (std.transform(X), std.transform(y))
 
 
 # Main function. You don't have to change this
