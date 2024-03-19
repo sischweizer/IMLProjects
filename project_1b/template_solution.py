@@ -76,8 +76,40 @@ def fit(X, y):
     X_transformed = transform_data(X)
     # TODO: Enter your code here
 
-    '''
+    #crossvalidation
+    lambdas = [0.1, 0.3, 0.5, 0.7, 1, 2, 5, 10, 20]
     kf = KFold(n_splits=5)
+
+    error_mat = np.zeros((5, len(lambdas)))
+
+    for (j, lam) in enumerate(lambdas):
+        print("lambda: ", lam)
+
+        for i, (train, test) in enumerate(kf.split(X)): 
+            print("CV set ", i)
+            X_train = X_transformed[train]
+            y_train = y[train]
+        
+            X_test = X_transformed[test]
+            y_test = y[test]
+
+
+            model = Ridge(alpha=lam, fit_intercept=False).fit(X_train,y_train)
+            w = model.coef_
+            error_mat[i][j] = np.sqrt(np.mean(np.square(np.matmul(X_test, w) - y_test)))
+
+    avg_error = np.mean(error_mat, axis=0)
+    print(avg_error)
+
+    lam_final = lambdas[np.where(avg_error == avg_error.min())[0][0]]
+    print("lambda final: ", lam_final)
+    
+    model = Ridge(alpha=lam_final, fit_intercept=False).fit(X_transformed,y)
+    w = model.coef_
+    training_error = np.sqrt(np.mean(np.square(np.matmul(X_transformed, w) - y)))
+    print(training_error)
+
+    '''
     best_validation_loss = 1000000
     for i, (train, test) in enumerate(kf.split(X_transformed)): 
             print("CV set ", i)
@@ -98,17 +130,16 @@ def fit(X, y):
                 print("best validation loss: ", validation_loss)
     '''
 
-    lambdas = [0.1, 0.3, 0.5, 0.7, 1, 2, 5, 10, 20]
     
-    #for i, lam in enumerate(lambdas)
+    
+    #original code
+    #model = Ridge(alpha=0.5, fit_intercept=False).fit(X_transformed,y)
+    #w = model.coef_
+    #training_error = np.sqrt(np.mean(np.square(np.matmul(X_transformed, w) - y)))
+    #print(training_error)
 
-    model = Ridge(alpha=0.5, fit_intercept=False).fit(X_transformed,y)
+    #comment
     #model = LinearRegression(fit_intercept=False).fit(X_transformed,y)
-    w = model.coef_
-    
-
-    training_error = np.sqrt(np.mean(np.square(np.matmul(X_transformed, w) - y)))
-    print(training_error)
 
     assert w.shape == (21,)
     return w
@@ -124,7 +155,7 @@ def fit(X, y):
 # Main function. You don't have to change this
 if __name__ == "__main__":
     # Data loading
-    data = pd.read_csv("train.csv")
+    data = pd.read_csv("project_1b/train.csv")
     y = data["y"].to_numpy()
     data = data.drop(columns=["Id", "y"])
     # print a few data samples
@@ -134,4 +165,4 @@ if __name__ == "__main__":
     # The function retrieving optimal LR parameters
     w = fit(X, y)
     # Save results in the required format
-    np.savetxt("./results.csv", w, fmt="%.12f")
+    np.savetxt("project_1b/results.csv", w, fmt="%.12f")
