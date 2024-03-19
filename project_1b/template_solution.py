@@ -85,7 +85,7 @@ def fit(X, y):
     for (j, lam) in enumerate(lambdas):
         print("lambda: ", lam)
 
-        for i, (train, test) in enumerate(kf.split(X)): 
+        for i, (train, test) in enumerate(kf.split(X_transformed)): 
             print("CV set ", i)
             X_train = X_transformed[train]
             y_train = y[train]
@@ -108,7 +108,7 @@ def fit(X, y):
     w = model.coef_
     training_error = np.sqrt(np.mean(np.square(np.matmul(X_transformed, w) - y)))
     print(training_error)
-
+    
     '''
     best_validation_loss = 1000000
     for i, (train, test) in enumerate(kf.split(X_transformed)): 
