@@ -112,7 +112,7 @@ def modeling_and_prediction(X_train, y_train, X_test):
 
     
     #crossvalidation
-    lambdas = [0.1, 0.3, 0.5, 0.7, 1, 2, 5, 10, 20]
+    lambdas = [10, 20, 40, 50, 60, 70, 80,  90, 100, 1000]
     kf = KFold(n_splits=5)
 
     error_mat = np.zeros((5, len(lambdas)))
@@ -123,21 +123,33 @@ def modeling_and_prediction(X_train, y_train, X_test):
 
         for i, (train, test) in enumerate(kf.split(X_train)): 
             print("CV set ", i)
-            X_train_CV = X_train[train]
-            y_train_CV = y_train[train]
-            print(X_train_CV)
-            print(y_train_CV)
-            X_test_CV = X_train[test]
-            y_test_CV = y_train[test]
+            X_train_CV = X_train.iloc[train]
+            y_train_CV = y_train.iloc[train]
+            
+            X_test_CV = X_train.iloc[test]
+            y_test_CV = y_train.iloc[test]
 
 
             model = Ridge(alpha=lam, fit_intercept=False).fit(X_train_CV,y_train_CV)
             w = model.coef_
             error_mat[i][j] = np.sqrt(np.mean(np.square(np.matmul(X_test_CV, w) - y_test_CV)))
 
+    avg_error = np.mean(error_mat, axis=0)
+    print(avg_error)
 
-    gpr = GaussianProcessRegressor(kernel=DotProduct())
-    gpr.fit(X_train, y_train)
+    lam_final = lambdas[np.where(avg_error == avg_error.min())[0][0]]
+    print("lambda final: ", lam_final)
+
+    model = Ridge(alpha=lam_final, fit_intercept=False).fit(X_train,y_train)
+    w = model.coef_
+    training_error = np.sqrt(np.mean(np.square(np.matmul(X_train, w) - y_train)))
+    print(training_error)
+
+    y_pred = model.predict(X_test)
+    print(y_pred)
+
+    #gpr = GaussianProcessRegressor(kernel=DotProduct())
+    #gpr.fit(X_train, y_train)
 
     assert y_pred.shape == (100,), "Invalid data shape"
     return y_pred
