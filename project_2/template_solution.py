@@ -3,6 +3,28 @@
 # First, we import necessary libraries:
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.impute import KNNImputer
+from sklearn.impute import SimpleImputer
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import DotProduct, RBF, Matern, RationalQuadratic
+from sklearn.model_selection import KFold
+from sklearn.linear_model import Ridge
+
+def plot_data(label,data):
+    
+    time = np.arange(len(label))
+    #data = np.power(10, data)
+    plt.plot(time, data)
+    plt.xlabel('season')
+    plt.ylabel('price')
+    plt.show()
+
+def fill_data(data):
+    #imp = SimpleImputer(missing_values=np.nan, strategy='mean')
+    imp = KNNImputer(n_neighbors=2, weights="uniform")
+    data = imp.fit_transform(data)
+    return data
 
 def data_loading():
     """
@@ -18,7 +40,7 @@ def data_loading():
     X_test: matrix of floats: dim = (100, ?), test input with features
     """
     # Load training data
-    train_df = pd.read_csv("train.csv")
+    train_df = pd.read_csv("project_2/train.csv")
     
     print("Training data:")
     print("Shape:", train_df.shape)
@@ -26,20 +48,46 @@ def data_loading():
     print('\n')
     
     # Load test data
-    test_df = pd.read_csv("test.csv")
+    test_df = pd.read_csv("project_2/test.csv")
 
     print("Test data:")
     print(test_df.shape)
     print(test_df.head(2))
 
+    # TODO: Perform data preprocessing, imputation and extract X_train, y_train and X_test
+
+    # dataframe to numpy  
+    #drop(['price_CHF'],axis=1)
+    X_train = train_df.drop(['season'],axis=1)
+    X_test = test_df.drop(['season'],axis=1)
+    
+    # label for plot
+    label_train = train_df['season']
+    label_test = test_df['season']
+    
+    ### data insertion ###
+    X_train = fill_data(X_train)
+    X_test = fill_data(X_test)
+
+
+    X_train = pd.DataFrame(X_train, columns=train_df.drop(['season'],axis=1).columns)
+    y_train = X_train['price_CHF']
+    X_train = X_train.drop(['price_CHF'],axis=1)
+    
+    #visualization 
+    plot = False
+    if(plot == True):
+        plot_data(label_train, X_train)
+        plot_data(label_train, y_train)
+        plot_data(label_test, X_test)
+    
     # Dummy initialization of the X_train, X_test and y_train
     # TODO: Depending on how you deal with the non-numeric data, you may want to 
     # modify/ignore the initialization of these variables   
-    X_train = np.zeros_like(train_df.drop(['price_CHF'],axis=1))
-    y_train = np.zeros_like(train_df['price_CHF'])
-    X_test = np.zeros_like(test_df)
-
-    # TODO: Perform data preprocessing, imputation and extract X_train, y_train and X_test
+    #X_train = np.zeros_like(train_df.drop(['price_CHF'],axis=1))
+    #y_train = np.zeros_like(train_df['price_CHF'])
+    #X_test = np.zeros_like(test_df)
+    
 
     assert (X_train.shape[1] == X_test.shape[1]) and (X_train.shape[0] == y_train.shape[0]) and (X_test.shape[0] == 100), "Invalid data shape"
     return X_train, y_train, X_test
@@ -61,6 +109,35 @@ def modeling_and_prediction(X_train, y_train, X_test):
 
     y_pred=np.zeros(X_test.shape[0])
     #TODO: Define the model and fit it using training data. Then, use test data to make predictions
+
+    
+    #crossvalidation
+    lambdas = [0.1, 0.3, 0.5, 0.7, 1, 2, 5, 10, 20]
+    kf = KFold(n_splits=5)
+
+    error_mat = np.zeros((5, len(lambdas)))
+    print(X_train.shape)
+    
+    for (j, lam) in enumerate(lambdas):
+        print("lambda: ", lam)
+
+        for i, (train, test) in enumerate(kf.split(X_train)): 
+            print("CV set ", i)
+            X_train_CV = X_train[train]
+            y_train_CV = y_train[train]
+            print(X_train_CV)
+            print(y_train_CV)
+            X_test_CV = X_train[test]
+            y_test_CV = y_train[test]
+
+
+            model = Ridge(alpha=lam, fit_intercept=False).fit(X_train_CV,y_train_CV)
+            w = model.coef_
+            error_mat[i][j] = np.sqrt(np.mean(np.square(np.matmul(X_test_CV, w) - y_test_CV)))
+
+
+    gpr = GaussianProcessRegressor(kernel=DotProduct())
+    gpr.fit(X_train, y_train)
 
     assert y_pred.shape == (100,), "Invalid data shape"
     return y_pred
