@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from sklearn.impute import KNNImputer
 from sklearn.impute import SimpleImputer
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import DotProduct, RBF, Matern, RationalQuadratic
+from sklearn.gaussian_process.kernels import DotProduct, RBF, Matern, RationalQuadratic, Exponentiation, ExpSineSquared, WhiteKernel
+from sklearn.metrics import r2_score
 from sklearn.model_selection import KFold
 from sklearn.linear_model import Ridge
 from sklearn.naive_bayes import GaussianNB
@@ -114,21 +115,26 @@ def modeling_and_prediction(X_train, y_train, X_test):
     
     from sklearn.gaussian_process import GaussianProcessRegressor
     from sklearn.gaussian_process.kernels import DotProduct, RBF, Matern, RationalQuadratic
-    gpr = GaussianProcessRegressor(kernel=RationalQuadratic())
-    gpr.fit(X_train, y_train)
+    from sklearn.metrics import r2_score
+    #gpr = GaussianProcessRegressor(kernel=RationalQuadratic())
+    #gpr.fit(X_train, y_train)
     
-    '''
+    kernels = [Matern(), RationalQuadratic()]
+    
+    
     #crossvalidation
-    lambdas = [10, 20, 40, 50, 60, 70, 80,  90, 100, 1000]
+    
     kf = KFold(n_splits=5)
 
-    error_mat = np.zeros((5, len(lambdas)))
+    error_mat = np.zeros((5, len(kernels)))
     print(X_train.shape)
     
-    clf = GaussianNB()
+    #Mattern Crossvalidation 
+    # quadreatic crossvalidation
+    # Crossvalidation Selection 
     
-    for (j, lam) in enumerate(lambdas):
-        print("lambda: ", lam)
+    for (j, kern) in enumerate(kernels):
+        
 
         for i, (train, test) in enumerate(kf.split(X_train)): 
             print("CV set ", i)
@@ -139,27 +145,36 @@ def modeling_and_prediction(X_train, y_train, X_test):
             y_test_CV = y_train.iloc[test]
 
 
-            model = Ridge(alpha=lam, fit_intercept=True).fit(X_train_CV,y_train_CV)
+            model = GaussianProcessRegressor(kern)
+            model.fit(X_train_CV, y_train_CV)
             #w = model.coef_
             #error_mat[i][j] = np.sqrt(np.mean(np.square(np.matmul(X_test_CV, w) - y_test_CV)))
-            error_mat[i][j] = np.sqrt(np.mean(np.square(model.predict(X_test_CV) - y_test_CV)))
+            #error_mat[i][j] = np.sqrt(np.mean(np.square(model.predict(X_test_CV) - y_test_CV)))
+            error_mat[i][j] = r2_score(y_test_CV, model.predict(X_test_CV))
+
+
 
     avg_error = np.mean(error_mat, axis=0)
     print(avg_error)
 
-    lam_final = lambdas[np.where(avg_error == avg_error.min())[0][0]]
-    print("lambda final: ", lam_final)
+    kernel_pos = np.where(avg_error == avg_error.max())[0][0]
+    print(kernel_pos)
 
-    model = Ridge(alpha=lam_final, fit_intercept=True).fit(X_train,y_train)
+
+
+    #print("lambda final: ", lam_final)
+
+    model = GaussianProcessRegressor(kernel = kernels[kernel_pos]).fit(X_train,y_train)
+    #model = Ridge(alpha=lam_final, fit_intercept=True).fit(X_train,y_train)
     #w = model.coef_
     #training_error = np.sqrt(np.mean(np.square(np.matmul(X_train, w) - y_train)))
-    training_error = np.sqrt(np.mean(np.square(model.predict(X_train) - y_train)))
-    print(training_error)
-    '''
+    
+    
+    
 
     #clf.fit(X_test, y_test)
     #y_pred = model.predict(X_test)
-    y_pred = gpr.predict(X_test)
+    y_pred = model.predict(X_test)
     print(y_pred)
 
     #gpr = GaussianProcessRegressor(kernel=DotProduct())
