@@ -116,8 +116,6 @@ def modeling_and_prediction(X_train, y_train, X_test):
     from sklearn.gaussian_process import GaussianProcessRegressor
     from sklearn.gaussian_process.kernels import DotProduct, RBF, Matern, RationalQuadratic
     from sklearn.metrics import r2_score
-    #gpr = GaussianProcessRegressor(kernel=RationalQuadratic())
-    #gpr.fit(X_train, y_train)
     
     kernels = [Matern(), RationalQuadratic()]
     
@@ -126,14 +124,18 @@ def modeling_and_prediction(X_train, y_train, X_test):
     
     kf = KFold(n_splits=5)
 
-    error_mat = np.zeros((5, len(kernels)))
-    print(X_train.shape)
+    
     
     #Mattern Crossvalidation 
     # quadreatic crossvalidation
     # Crossvalidation Selection 
     
-    for (j, kern) in enumerate(kernels):
+    
+    lengths = [0.001,0.1,1,10,100]
+    matern_error_mat = np.zeros((5, len(lengths)))
+    print(X_train.shape)
+    print("Matern CV")
+    for (j, length) in enumerate(lengths):
         
 
         for i, (train, test) in enumerate(kf.split(X_train)): 
@@ -144,41 +146,60 @@ def modeling_and_prediction(X_train, y_train, X_test):
             X_test_CV = X_train.iloc[test]
             y_test_CV = y_train.iloc[test]
 
-
-            model = GaussianProcessRegressor(kern)
+            model = GaussianProcessRegressor(Matern(length_scale=length))
             model.fit(X_train_CV, y_train_CV)
-            #w = model.coef_
-            #error_mat[i][j] = np.sqrt(np.mean(np.square(np.matmul(X_test_CV, w) - y_test_CV)))
-            #error_mat[i][j] = np.sqrt(np.mean(np.square(model.predict(X_test_CV) - y_test_CV)))
-            error_mat[i][j] = r2_score(y_test_CV, model.predict(X_test_CV))
+            matern_error_mat[i][j] = r2_score(y_test_CV, model.predict(X_test_CV))
+            
+    print(matern_error_mat)
+        
+    avg_Matern_error = np.mean(matern_error_mat, axis=0)
+    print(avg_Matern_error)
 
-
-
-    avg_error = np.mean(error_mat, axis=0)
-    print(avg_error)
-
-    kernel_pos = np.where(avg_error == avg_error.max())[0][0]
-    print(kernel_pos)
-
-
-
-    #print("lambda final: ", lam_final)
-
-    model = GaussianProcessRegressor(kernel = kernels[kernel_pos]).fit(X_train,y_train)
-    #model = Ridge(alpha=lam_final, fit_intercept=True).fit(X_train,y_train)
-    #w = model.coef_
-    #training_error = np.sqrt(np.mean(np.square(np.matmul(X_train, w) - y_train)))
+    length_pos = np.where(avg_Matern_error == avg_Matern_error.max())[0][0]
+    print(length_pos)
     
     
     
+    
+    print("RationalQuadratic CV")
+    alphas = [0.001,0.1,1,10,100]
+    RQ_error_mat = np.zeros((5, len(alphas)))    
+    
+    for (j, alpha) in enumerate(alphas):
+        
 
-    #clf.fit(X_test, y_test)
-    #y_pred = model.predict(X_test)
+        for i, (train, test) in enumerate(kf.split(X_train)): 
+            print("CV set ", i)
+            X_train_CV = X_train.iloc[train]
+            y_train_CV = y_train.iloc[train]
+            
+            X_test_CV = X_train.iloc[test]
+            y_test_CV = y_train.iloc[test]
+
+            model = GaussianProcessRegressor(RationalQuadratic(alpha=alpha))
+            model.fit(X_train_CV, y_train_CV)
+            RQ_error_mat[i][j] = r2_score(y_test_CV, model.predict(X_test_CV))
+            
+
+    print(RQ_error_mat)
+    avg_RQ_error = np.mean(RQ_error_mat, axis=0)
+    print(avg_RQ_error)
+
+    alpha_pos = np.where(avg_RQ_error == avg_RQ_error.max())[0][0]
+    print(alpha_pos)
+
+    if (avg_RQ_error[alpha_pos] < avg_Matern_error[length_pos]):
+        model = GaussianProcessRegressor(Matern(length_scale=lengths[length_pos]))
+        print("Matern chosen")
+    else:
+        model = GaussianProcessRegressor(RationalQuadratic(alpha=alphas[alpha_pos]))
+        print("Rational Quadratic chosen")
+
+    model.fit(X_train,y_train)
+
     y_pred = model.predict(X_test)
     print(y_pred)
 
-    #gpr = GaussianProcessRegressor(kernel=DotProduct())
-    #gpr.fit(X_train, y_train)
 
     assert y_pred.shape == (100,), "Invalid data shape"
     return y_pred
