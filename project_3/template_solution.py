@@ -35,7 +35,11 @@ def generate_embeddings():
     train_loader = DataLoader(dataset=train_dataset,
                               batch_size=64,
                               shuffle=False,
+<<<<<<< HEAD
                               pin_memory=True, num_workers=12)
+=======
+                              pin_memory=True, num_workers=16)
+>>>>>>> 17be3b3 (commit templates)
 
     # TODO: define a model for extraction of the embeddings (Hint: load a pretrained model,
     #  more info here: https://pytorch.org/vision/stable/models.html)
@@ -69,7 +73,11 @@ def get_data(file, train=True):
     # generate training data from triplets
     train_dataset = datasets.ImageFolder(root="dataset/",
                                          transform=None)
+<<<<<<< HEAD
     filenames = [s[0].split('/')[-1].split('\\')[-1].replace('.jpg', '') for s in train_dataset.samples]
+=======
+    filenames = [s[0].split('/')[-1].replace('.jpg', '') for s in train_dataset.samples]
+>>>>>>> 17be3b3 (commit templates)
     embeddings = np.load('dataset/embeddings.npy')
     # TODO: Normalize the embeddings
 
@@ -78,9 +86,12 @@ def get_data(file, train=True):
         file_to_embedding[filenames[i]] = embeddings[i]
     X = []
     y = []
+<<<<<<< HEAD
     
     #print(list(file_to_embedding.keys())[0:5])
     
+=======
+>>>>>>> 17be3b3 (commit templates)
     # use the individual embeddings to generate the features and labels for triplets
     for t in triplets:
         emb = [file_to_embedding[a] for a in t.split()]
