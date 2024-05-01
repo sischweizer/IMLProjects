@@ -4,13 +4,17 @@
 import numpy as np
 from torchvision import transforms
 from torchvision.models import resnet50, ResNet50_Weights
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, random_split
 import os
 import torch
 from torchvision import transforms
 import torchvision.datasets as datasets
 import torch.nn as nn
 import torch.nn.functional as F
+import time
+
+from torchvision.models.feature_extraction import get_graph_node_names
+from torchvision.models.feature_extraction import create_feature_extractor
 
 # The device is automatically set to GPU if available, otherwise CPU
 # If you want to force the device to CPU, you can change the line to
@@ -18,6 +22,7 @@ import torch.nn.functional as F
 # When using the GPU, it is important that your model and all data are on the 
 # same device.
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 def generate_embeddings():
     """
@@ -29,19 +34,16 @@ def generate_embeddings():
     # below. 
     # See https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models
     train_transforms = transforms.Compose([transforms.ToTensor()])
-
-    train_dataset = datasets.ImageFolder(root="dataset/", transform=train_transforms)
+    
+    train_dataset = datasets.ImageFolder(root="project_3/dataset/", transform=train_transforms)
     # Hint: adjust batch_size and num_workers to your PC configuration, so that you don't 
     # run out of memory (VRAM if on GPU, RAM if on CPU)
     train_loader = DataLoader(dataset=train_dataset,
                               batch_size=64,
                               shuffle=False,
-<<<<<<< HEAD
-                              pin_memory=True, num_workers=12)
-=======
-                              pin_memory=True, num_workers=16)
->>>>>>> 17be3b3 (commit templates)
-
+                              pin_memory=True, 
+                              num_workers=16)
+    
     # TODO: define a model for extraction of the embeddings (Hint: load a pretrained model,
     #  more info here: https://pytorch.org/vision/stable/models.html)
     #model = nn.Module()
@@ -53,8 +55,32 @@ def generate_embeddings():
     embeddings = np.zeros((num_images, embedding_size))
     # TODO: Use the model to extract the embeddings. Hint: remove the last layers of the 
     # model to access the embeddings the model generates. 
+    
+    #train_nodes, eval_nodes = get_graph_node_names(resnet50())
+    #print(train_nodes)
 
-    np.save('dataset/embeddings.npy', embeddings)
+    return_nodes = {
+        'fc': 'layer4',
+    }
+
+    model_2 = create_feature_extractor(model, return_nodes=return_nodes)
+    model_2.to(device)
+
+    #for i in range(0,len(train_dataset.imgs)):
+    #    model_2(train_dataset.imgs[i])
+    start = time.time()
+    with torch.no_grad():
+        for i, img in enumerate(train_loader.dataset):
+            print(i)
+            data = (img[0].unsqueeze(0)).to(device)
+            result = model_2(data)['layer4']
+            embeddings[i] = torch.flatten(result.cpu())
+    end = time.time()    
+    print('Time consumption {} sec'.format(end - start))    
+     
+    
+    
+    np.save('project_3/dataset/embeddings.npy', embeddings)
 
 
 def get_data(file, train=True):
@@ -73,27 +99,23 @@ def get_data(file, train=True):
             triplets.append(line)
 
     # generate training data from triplets
-    train_dataset = datasets.ImageFolder(root="dataset/",
+    train_dataset = datasets.ImageFolder(root="project_3/dataset/",
                                          transform=None)
-<<<<<<< HEAD
     filenames = [s[0].split('/')[-1].split('\\')[-1].replace('.jpg', '') for s in train_dataset.samples]
-=======
-    filenames = [s[0].split('/')[-1].replace('.jpg', '') for s in train_dataset.samples]
->>>>>>> 17be3b3 (commit templates)
-    embeddings = np.load('dataset/embeddings.npy')
+    embeddings = np.load('project_3/dataset/embeddings.npy')
     # TODO: Normalize the embeddings
+    
+    
+    embeddings = torch.from_numpy(embeddings)
+    std = torch.std(embeddings)
+    mean = torch.mean(embeddings) 
+    embeddings = (embeddings - mean)/std
 
     file_to_embedding = {}
     for i in range(len(filenames)):
         file_to_embedding[filenames[i]] = embeddings[i]
     X = []
     y = []
-<<<<<<< HEAD
-    
-    #print(list(file_to_embedding.keys())[0:5])
-    
-=======
->>>>>>> 17be3b3 (commit templates)
     # use the individual embeddings to generate the features and labels for triplets
     for t in triplets:
         emb = [file_to_embedding[a] for a in t.split()]
@@ -136,12 +158,19 @@ class Net(nn.Module):
     """
     The model class, which defines our classifier.
     """
-    def __init__(self):
+    def __init__(self, dropout=True):
         """
         The constructor of the model.
         """
         super().__init__()
-        self.fc = nn.Linear(3000, 1)
+
+        self.fc1 = nn.Sequential(nn.Linear(3000, 750), nn.ReLU())
+        self.fc2 = nn.Sequential(nn.Linear(750, 375), nn.ReLU())
+        if dropout:
+            self.fc3 = nn.Sequential(nn.Dropout(), nn.Linear(375, 1))
+        else:
+            self.fc3 = nn.Linear(375, 1)
+        
 
     def forward(self, x):
         """
@@ -151,8 +180,11 @@ class Net(nn.Module):
 
         output: x: torch.Tensor, the output of the model
         """
-        x = self.fc(x)
-        x = F.relu(x)
+        x = x.view(-1, 3000)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        x = self.fc3(x)
+        #x = F.relu(x)
         return x
 
 def train_model(train_loader):
@@ -173,9 +205,42 @@ def train_model(train_loader):
     # validation split and print it out. This enables you to see how your model is performing 
     # on the validation data before submitting the results on the server. After choosing the 
     # best model, train it on the whole training data.
+
+
+    #validation set split
+    g = torch.Generator(device="cpu")
+    training_set,validation_set = random_split(train_loader.dataset, [0.8, 0.2], generator= g)
+
+    loss_fct = torch.nn.BCELoss()
+    training_loss = []
+    print(type(training_set))
+    print(type(training_set.dataset))
+    print(len(training_set.dataset[0][0]))
+
+    #training --> backward propagation is missing
+    for epoch in range(n_epochs):        
+        for [X, y] in training_set:
+            
+            y_pred = model.forward(X.to(device))
+            training_loss.append(loss_fct(torch.flatten(y_pred)[0].clamp(0, 1),y.float().to(device)))
+            
+    print(training_loss)
+    
+    #validation loss  
+    validation_loss = []
+    for [X, y] in validation_set:
+        y_pred = model.forward(X.to(device))      
+        validation_loss.append(loss_fct(torch.flatten(y_pred)[0].clamp(0, 1),y.float().to(device)))
+
+        pass
+    print(validation_loss)
+
+    loss = []
     for epoch in range(n_epochs):        
         for [X, y] in train_loader:
+            
             pass
+    print(loss)
     return model
 
 def test_model(model, loader):
@@ -201,16 +266,16 @@ def test_model(model, loader):
             predicted[predicted < 0.5] = 0
             predictions.append(predicted)
         predictions = np.vstack(predictions)
-    np.savetxt("results.txt", predictions, fmt='%i')
+    np.savetxt("project_3/results.txt", predictions, fmt='%i')
 
 
 # Main function. You don't have to change this
 if __name__ == '__main__':
-    TRAIN_TRIPLETS = 'train_triplets.txt'
-    TEST_TRIPLETS = 'test_triplets.txt'
+    TRAIN_TRIPLETS = 'project_3/train_triplets.txt'
+    TEST_TRIPLETS = 'project_3/test_triplets.txt'
 
     # generate embedding for each image in the dataset
-    if(os.path.exists('dataset/embeddings.npy') == False):
+    if(os.path.exists('project_3/dataset/embeddings.npy') == False):
         generate_embeddings()
 
     # load the training data
