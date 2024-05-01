@@ -3,6 +3,7 @@
 # First, we import necessary libraries:
 import numpy as np
 from torchvision import transforms
+from torchvision.models import resnet50, ResNet50_Weights
 from torch.utils.data import DataLoader, TensorDataset
 import os
 import torch
@@ -39,7 +40,8 @@ def generate_embeddings():
 
     # TODO: define a model for extraction of the embeddings (Hint: load a pretrained model,
     #  more info here: https://pytorch.org/vision/stable/models.html)
-    model = nn.Module()
+    #model = nn.Module()
+    model = resnet50(weights=ResNet50_Weights.DEFAULT, progress=True)
     model.to(device)
     embedding_size = 1000 # Dummy variable, replace with the actual embedding size once you 
     # pick your model
