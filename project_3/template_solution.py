@@ -164,12 +164,15 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3000, 750), nn.ReLU())
-        self.fc2 = nn.Sequential(nn.Linear(750, 375), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3000, 1500), nn.ReLU())
+        self.fc2 = nn.Sequential(nn.Linear(1500, 1000), nn.ReLU())
+        self.fc3 = nn.Sequential(nn.Linear(1000, 500), nn.ReLU())
+        self.fc4 = nn.Sequential(nn.Linear(500, 250), nn.ReLU())
+
         if dropout:
-            self.fc3 = nn.Sequential(nn.Dropout(), nn.Linear(375, 1))
+            self.fc5 = nn.Sequential(nn.Dropout(), nn.Linear(250, 1))
         else:
-            self.fc3 = nn.Linear(375, 1)
+            self.fc5 = nn.Linear(250, 1)
         
 
     def forward(self, x):
@@ -181,13 +184,12 @@ class Net(nn.Module):
         output: x: torch.Tensor, the output of the model
         """
         x = x.view(-1, 3000)
+        
         x = self.fc1(x)
-        x = F.sigmoid(x)
         x = self.fc2(x)
-        x = F.sigmoid(x)
         x = self.fc3(x)
-        x = F.sigmoid(x)
-        #x = F.relu(x)
+        x = self.fc4(x)
+        x = self.fc5(x)
         return x
 
 def train_model(train_loader):
@@ -213,34 +215,47 @@ def train_model(train_loader):
     #validation set split
     g = torch.Generator(device="cpu")
     training_set,validation_set = random_split(train_loader.dataset, [0.8, 0.2], generator= g)
-
+ 
     loss_fct = torch.nn.BCEWithLogitsLoss()
     training_loss = []
     validation_loss = []
-    print(type(training_set))
-    print(type(training_set.dataset))
-    print(len(training_set.dataset[0][0]))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    #optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.001)
+    start = time.time()
 
-    #training --> backward propagation is missing
+    #training 
     for epoch in range(n_epochs):   
-        print(epoch)      
-        for [X, y] in training_set:
-            
-            y_pred = model.forward(X.to(device))
-            loss = loss_fct(torch.flatten(y_pred)[0].clamp(0, 1),y.float().to(device))
-            training_loss.append(loss)
+        x_train = torch.empty(len(training_set),3000)
+        y_train = torch.empty(len(training_set),1)
+        for i, [X, y] in enumerate(training_set):
+            x_train[i] = X
+            y_train[i] = y
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+        y_pred = model.forward(x_train.to(device))
 
-        for [X, y] in validation_set:
-            y_pred = model.forward(X.to(device))     
-            loss = loss_fct(torch.flatten(y_pred)[0].clamp(0, 1),y.float().to(device)) 
-            validation_loss.append(loss)
-        print(loss)
+        loss = loss_fct(y_pred,y_train.float().to(device))
+        training_loss.append(loss)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        print(f'epoch: {epoch:2}  training_loss: {loss.item():10.8f}')
+        
+        x_val = torch.empty(len(validation_set),3000)
+        y_val = torch.empty(len(validation_set),1)
+        for i, [X, y] in enumerate(validation_set):
+            x_val[i] = X
+            y_val[i] = y
+        y_pred = model.forward(x_val.to(device))     
+        loss = loss_fct(y_pred,y_val.float().to(device)) 
+        validation_loss.append(loss)
+        print(f'epoch: {epoch:2}  validation_loss: {loss.item():10.8f}')
+        
+        end = time.time()    
+        print('Time consumption {} sec'.format(end - start)) 
+        start = time.time()
 
           
 
@@ -249,18 +264,25 @@ def train_model(train_loader):
     print("validation loss:")
     print(validation_loss)
 
-    loss = []
+    loss_tot = []
     for epoch in range(n_epochs):        
-        for [X, y] in train_loader:
-            y_pred = model.forward(X.to(device))
-            loss = loss_fct(torch.flatten(y_pred)[0].clamp(0, 1),y.float().to(device))
-            training_loss.append(loss)
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            pass
-    print(loss)
+        x_tot = torch.empty(len(train_loader.dataset),3000)
+        y_tot = torch.empty(len(train_loader.dataset),1)
+        for i, [X, y] in enumerate(train_loader.dataset):
+            x_tot[i] = X
+            y_tot[i] = y
+        y_pred = model.forward(x_tot.to(device))
+             
+        loss = loss_fct(y_pred,y_tot.float().to(device)) 
+        loss_tot.append(loss)
+        print(f'epoch: {epoch:2}  total_loss: {loss.item():10.8f}')
+        
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        
+    print(loss_tot)
     return model
 
 def test_model(model, loader):
@@ -282,6 +304,7 @@ def test_model(model, loader):
             predicted = model(x_batch)
             predicted = predicted.cpu().numpy()
             # Rounding the predictions to 0 or 1
+            print(predicted)
             predicted[predicted >= 0.5] = 1
             predicted[predicted < 0.5] = 0
             predictions.append(predicted)
