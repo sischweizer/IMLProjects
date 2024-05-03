@@ -182,8 +182,11 @@ class Net(nn.Module):
         """
         x = x.view(-1, 3000)
         x = self.fc1(x)
+        x = F.sigmoid(x)
         x = self.fc2(x)
+        x = F.sigmoid(x)
         x = self.fc3(x)
+        x = F.sigmoid(x)
         #x = F.relu(x)
         return x
 
@@ -211,34 +214,51 @@ def train_model(train_loader):
     g = torch.Generator(device="cpu")
     training_set,validation_set = random_split(train_loader.dataset, [0.8, 0.2], generator= g)
 
-    loss_fct = torch.nn.BCELoss()
+    loss_fct = torch.nn.BCEWithLogitsLoss()
     training_loss = []
+    validation_loss = []
     print(type(training_set))
     print(type(training_set.dataset))
     print(len(training_set.dataset[0][0]))
 
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+
     #training --> backward propagation is missing
-    for epoch in range(n_epochs):        
+    for epoch in range(n_epochs):   
+        print(epoch)      
         for [X, y] in training_set:
             
             y_pred = model.forward(X.to(device))
-            training_loss.append(loss_fct(torch.flatten(y_pred)[0].clamp(0, 1),y.float().to(device)))
-            
-    print(training_loss)
-    
-    #validation loss  
-    validation_loss = []
-    for [X, y] in validation_set:
-        y_pred = model.forward(X.to(device))      
-        validation_loss.append(loss_fct(torch.flatten(y_pred)[0].clamp(0, 1),y.float().to(device)))
+            loss = loss_fct(torch.flatten(y_pred)[0].clamp(0, 1),y.float().to(device))
+            training_loss.append(loss)
 
-        pass
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        for [X, y] in validation_set:
+            y_pred = model.forward(X.to(device))     
+            loss = loss_fct(torch.flatten(y_pred)[0].clamp(0, 1),y.float().to(device)) 
+            validation_loss.append(loss)
+        print(loss)
+
+          
+
+    print("training loss:")
+    print(training_loss)
+    print("validation loss:")
     print(validation_loss)
 
     loss = []
     for epoch in range(n_epochs):        
         for [X, y] in train_loader:
-            
+            y_pred = model.forward(X.to(device))
+            loss = loss_fct(torch.flatten(y_pred)[0].clamp(0, 1),y.float().to(device))
+            training_loss.append(loss)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
             pass
     print(loss)
     return model
