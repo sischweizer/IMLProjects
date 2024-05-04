@@ -1,0 +1,9 @@
+lr = 0.0003, epochs = 25, accuracy = 0.500738949348381
+lr = 0.00065, epochs = 25, accuracy = 0.5020656993147924
+lr = 0.00075, epochs = 25, accuracy = 0.502384791078866
+lr = 0.001, epochs = 25, accuracy = 0.49978167405616014
+lr = 0.00065, epochs = 25, accuracy = 0.5005374177079135 (with wrong normalization)
+lr = 0.00065, epochs = 25, accuracy = 0.4998992341797662 (with scheduler)
+lr = 0.001, epochs = 25, accuracy = 0.5032916834609701 (with scheduler)
+lr = 0.0006, epochs = 25, accuracy = 0.49936181647185274
+

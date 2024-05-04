@@ -7,6 +7,7 @@ from torchvision.models import resnet50, ResNet50_Weights
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import os
 import torch
+from torch.optim.lr_scheduler import ExponentialLR, StepLR
 from torchvision import transforms
 import torchvision.datasets as datasets
 import torch.nn as nn
@@ -107,8 +108,8 @@ def get_data(file, train=True):
     
     
     embeddings = torch.from_numpy(embeddings)
-    std = torch.std(embeddings)
-    mean = torch.mean(embeddings) 
+    std = torch.std(embeddings, dim=0)
+    mean = torch.mean(embeddings, dim=0) 
     embeddings = (embeddings - mean)/std
 
     file_to_embedding = {}
@@ -204,7 +205,7 @@ def train_model(train_loader):
     model = Net()
     model.train()
     model.to(device)
-    n_epochs = 10
+    n_epochs = 25
     # TODO: define a loss function, optimizer and proceed with training. Hint: use the part 
     # of the training data as a validation split. After each epoch, compute the loss on the 
     # validation split and print it out. This enables you to see how your model is performing 
@@ -220,8 +221,10 @@ def train_model(train_loader):
     training_loss = []
     validation_loss = []
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    #optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0006)
+    #scheduler = StepLR(optimizer,step_size=100, gamma=0.9)
+    #scheduler = ExponentialLR(optimizer, gamma=0.9)
+    #optimizer = torch.optim.SGD(model.parameters(), lr=0.006, momentum=0.9)
     start = time.time()
 
     #training 
@@ -240,7 +243,7 @@ def train_model(train_loader):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
+        #scheduler.step()
         print(f'epoch: {epoch:2}  training_loss: {loss.item():10.8f}')
         
         x_val = torch.empty(len(validation_set),3000)
@@ -295,6 +298,7 @@ def test_model(model, loader):
         
     output: None, the function saves the predictions to a results.txt file
     """
+
     model.eval()
     predictions = []
     # Iterate over the test data
@@ -304,11 +308,18 @@ def test_model(model, loader):
             predicted = model(x_batch)
             predicted = predicted.cpu().numpy()
             # Rounding the predictions to 0 or 1
-            print(predicted)
+            
             predicted[predicted >= 0.5] = 1
             predicted[predicted < 0.5] = 0
             predictions.append(predicted)
+            
         predictions = np.vstack(predictions)
+
+    sum_tot = np.concatenate(predictions)
+    print (sum_tot.sum())
+    print (len(sum_tot))
+    print(sum_tot.sum()/len(sum_tot))
+ 
     np.savetxt("project_3/results.txt", predictions, fmt='%i')
 
 
