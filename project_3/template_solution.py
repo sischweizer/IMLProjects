@@ -3,7 +3,7 @@
 # First, we import necessary libraries:
 import numpy as np
 from torchvision import transforms
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import resnet50, ResNet50_Weights, resnet152, ResNet152_Weights
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import os
 import torch
@@ -48,9 +48,15 @@ def generate_embeddings():
     # TODO: define a model for extraction of the embeddings (Hint: load a pretrained model,
     #  more info here: https://pytorch.org/vision/stable/models.html)
     #model = nn.Module()
-    model = resnet50(weights=ResNet50_Weights.DEFAULT, progress=True)
+    weights = ResNet152_Weights.DEFAULT
+    preprocess = weights.transforms()
+    
+    #model = resnet50(weights=ResNet50_Weights.DEFAULT, progress=True)
+    model = resnet152(weights=weights, progress=True)
+    
+    #model = resnet101(weights=ResNet101_Weights.DEFAULT, progress=True)
     model.to(device)
-    embedding_size = 1000 # Dummy variable, replace with the actual embedding size once you 
+    embedding_size = 2048 # Dummy variable, replace with the actual embedding size once you 
     # pick your model
     num_images = len(train_dataset)
     embeddings = np.zeros((num_images, embedding_size))
@@ -59,13 +65,14 @@ def generate_embeddings():
     
     #train_nodes, eval_nodes = get_graph_node_names(resnet50())
     #print(train_nodes)
+    model_2 = torch.nn.Sequential(*(list(model.children())[:-1])).to(device)
+    
+    #return_nodes = {
+    #    'fc': 'layer4',
+    #}
 
-    return_nodes = {
-        'fc': 'layer4',
-    }
-
-    model_2 = create_feature_extractor(model, return_nodes=return_nodes)
-    model_2.to(device)
+    #model_2 = create_feature_extractor(model, return_nodes=return_nodes)
+    #model_2.to(device)
 
     #for i in range(0,len(train_dataset.imgs)):
     #    model_2(train_dataset.imgs[i])
@@ -73,8 +80,10 @@ def generate_embeddings():
     with torch.no_grad():
         for i, img in enumerate(train_loader.dataset):
             print(i)
-            data = (img[0].unsqueeze(0)).to(device)
-            result = model_2(data)['layer4']
+            img_transformed = preprocess(img[0].unsqueeze(0))
+            
+            data = (img_transformed).to(device)
+            result = model_2(data)
             embeddings[i] = torch.flatten(result.cpu())
     end = time.time()    
     print('Time consumption {} sec'.format(end - start))    
@@ -165,10 +174,10 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3000, 1500), nn.ReLU())
-        self.fc2 = nn.Sequential(nn.Linear(1500, 1000), nn.ReLU())
-        self.fc3 = nn.Sequential(nn.Linear(1000, 500), nn.ReLU())
-        self.fc4 = nn.Sequential(nn.Linear(500, 250), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(6144, 2000), nn.ReLU())
+        #self.fc2 = nn.Sequential(nn.Linear(4000, 2000), nn.ReLU())
+        self.fc3 = nn.Sequential(nn.Linear(2000, 1000), nn.ReLU())
+        self.fc4 = nn.Sequential(nn.Linear(1000, 250), nn.ReLU())
 
         if dropout:
             self.fc5 = nn.Sequential(nn.Dropout(), nn.Linear(250, 1))
@@ -184,10 +193,10 @@ class Net(nn.Module):
 
         output: x: torch.Tensor, the output of the model
         """
-        x = x.view(-1, 3000)
+        x = x.view(-1, 6144)
         
         x = self.fc1(x)
-        x = self.fc2(x)
+        #x = self.fc2(x)
         x = self.fc3(x)
         x = self.fc4(x)
         x = self.fc5(x)
@@ -205,7 +214,7 @@ def train_model(train_loader):
     model = Net()
     model.train()
     model.to(device)
-    n_epochs = 25
+    n_epochs = 10
     # TODO: define a loss function, optimizer and proceed with training. Hint: use the part 
     # of the training data as a validation split. After each epoch, compute the loss on the 
     # validation split and print it out. This enables you to see how your model is performing 
@@ -221,15 +230,17 @@ def train_model(train_loader):
     training_loss = []
     validation_loss = []
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0006)
-    #scheduler = StepLR(optimizer,step_size=100, gamma=0.9)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    scheduler = StepLR(optimizer,step_size=100, gamma=0.9)
     #scheduler = ExponentialLR(optimizer, gamma=0.9)
     #optimizer = torch.optim.SGD(model.parameters(), lr=0.006, momentum=0.9)
     start = time.time()
 
+    tot_size = 6144
+
     #training 
     for epoch in range(n_epochs):   
-        x_train = torch.empty(len(training_set),3000)
+        x_train = torch.empty(len(training_set),tot_size)
         y_train = torch.empty(len(training_set),1)
         for i, [X, y] in enumerate(training_set):
             x_train[i] = X
@@ -243,10 +254,10 @@ def train_model(train_loader):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        #scheduler.step()
+        scheduler.step()
         print(f'epoch: {epoch:2}  training_loss: {loss.item():10.8f}')
         
-        x_val = torch.empty(len(validation_set),3000)
+        x_val = torch.empty(len(validation_set),tot_size)
         y_val = torch.empty(len(validation_set),1)
         for i, [X, y] in enumerate(validation_set):
             x_val[i] = X
@@ -270,7 +281,7 @@ def train_model(train_loader):
     loss_tot = []
     for epoch in range(n_epochs):        
 
-        x_tot = torch.empty(len(train_loader.dataset),3000)
+        x_tot = torch.empty(len(train_loader.dataset),tot_size)
         y_tot = torch.empty(len(train_loader.dataset),1)
         for i, [X, y] in enumerate(train_loader.dataset):
             x_tot[i] = X
@@ -284,7 +295,12 @@ def train_model(train_loader):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+    
+    with open('project_3/solution.txt', 'w') as file:
+        for i in range(0, len(y_tot)):
         
+            file.write(str(y_tot[i]) +"\n")
+
     print(loss_tot)
     return model
 
@@ -331,9 +347,12 @@ if __name__ == '__main__':
     # generate embedding for each image in the dataset
     if(os.path.exists('project_3/dataset/embeddings.npy') == False):
         generate_embeddings()
+        print("finished embedingspart")
 
     # load the training data
     X, y = get_data(TRAIN_TRIPLETS)
+    
+    
     # Create data loaders for the training data
     train_loader = create_loader_from_np(X, y, train = True, batch_size=64)
     # delete the loaded training data to save memory, as the data loader copies
@@ -342,6 +361,7 @@ if __name__ == '__main__':
 
     # repeat for testing data
     X_test, y_test = get_data(TEST_TRIPLETS, train=False)
+
     test_loader = create_loader_from_np(X_test, train = False, batch_size=2048, shuffle=False)
     del X_test
     del y_test
