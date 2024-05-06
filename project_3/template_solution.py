@@ -267,7 +267,7 @@ def train_model(train_loader):
 
         scheduler.step()
 
-        avg_loss = float(loss_sum)/len(train_loader)
+        avg_loss = float(loss_sum)/len(training_set)
         training_loss.append(avg_loss)
         print(f'epoch: {epoch} training_loss: {avg_loss}')
 
@@ -279,7 +279,7 @@ def train_model(train_loader):
             loss_sum += loss.item()
             #number_of_batches += 1
 
-        avg_loss = float(loss_sum)/len(train_loader)
+        avg_loss = float(loss_sum)/len(validation_set)
         validation_loss.append(avg_loss)
         print(f'epoch: {epoch} validation_loss: {avg_loss}')
            
@@ -292,7 +292,7 @@ def train_model(train_loader):
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    scheduler = ExponentialLR(optimizer, gamma=0.9)
+    #scheduler = ExponentialLR(optimizer, gamma=0.9)
 
     loss_tot = []
     for epoch in range(n_epochs):  
