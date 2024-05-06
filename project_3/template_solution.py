@@ -182,15 +182,15 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3000, 1500), nn.BatchNorm1d(1500), nn.ReLU())
-        #self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
-        self.fc3 = nn.Sequential(nn.Linear(1500, 700), nn.BatchNorm1d(700), nn.ReLU())
-        #self.fc4 = nn.Sequential(nn.Linear(700, 200), nn.BatchNorm1d(4200), nn.LeakyReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3000, 1000), nn.BatchNorm1d(1000), nn.ReLU())
+        self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
+        self.fc3 = nn.Sequential(nn.Linear(400, 200), nn.BatchNorm1d(200), nn.ReLU())
+        #self.fc4 = nn.Sequential(nn.Linear(800, 400), nn.BatchNorm1d(400), nn.LeakyReLU())
 
         if dropout:
-            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(700, 1))
+            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(200, 1))
         else:
-            self.fc5 = nn.Linear(700, 1)
+            self.fc5 = nn.Linear(200, 1)
         #torch.nn.init.kaiming_normal_(self.fc5.weight, mode='fan_out', nonlinearity='relu')
         
 
@@ -205,10 +205,11 @@ class Net(nn.Module):
         x = x.view(-1, 3000)
         
         x = self.fc1(x)
-        #x = self.fc2(x)
+        x = self.fc2(x)
         x = self.fc3(x)
         #x = self.fc4(x)
         x = self.fc5(x)
+        x = F.relu(x)
         return x
 
 def train_model(train_loader):
@@ -223,7 +224,7 @@ def train_model(train_loader):
     model = Net()
     model.train()
     model.to(device)
-    n_epochs = 20
+    n_epochs = 10
     # TODO: define a loss function, optimizer and proceed with training. Hint: use the part 
     # of the training data as a validation split. After each epoch, compute the loss on the 
     # validation split and print it out. This enables you to see how your model is performing 
@@ -242,14 +243,15 @@ def train_model(train_loader):
     loss_fct = torch.nn.BCEWithLogitsLoss()
     training_loss = []
     validation_loss = []
-    lr = 0.000015
+
+    lr = 0.001
     gamma = 0.9
     momentum = 0.5
 
-    #optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     #scheduler = StepLR(optimizer,step_size=100, gamma=0.9)
     scheduler = ExponentialLR(optimizer, gamma=gamma)
+    #optimizer = torch.optim.SGD(model.parameters(), lr=0.006, momentum=0.9)
     start = time.time()
 
     total_size = 3000
@@ -283,26 +285,25 @@ def train_model(train_loader):
         validation_loss.append(loss_sum/number_of_batches)
         print(f'epoch: {epoch:2}  validation_loss: {validation_loss[-1]:10.8f}')
 
-        if(len(validation_loss) >= 2):
+        """if(len(validation_loss) >= 2):
             if((validation_loss[-1] - validation_loss[-2]) > 0):
                 counter += 1
                 if(counter == 2):
-                    n_epochs = epoch - 2
+                    n_epochs = epoch
                     break
-        
+        """
 
            
         end = time.time()    
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
 
-
-    
     model = Net()
     model.train()
     model.to(device)
-    #optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
+    
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    #scheduler = StepLR(optimizer,step_size=100, gamma=0.9)
     scheduler = ExponentialLR(optimizer, gamma=gamma)
 
     loss_tot = []
@@ -318,7 +319,7 @@ def train_model(train_loader):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        scheduler.step()
+            #scheduler.step()
 
         loss_tot.append(loss_sum/number_of_batches)
         print(f'epoch: {epoch:2}  total_loss: {loss_tot[-1]:10.8f}')
