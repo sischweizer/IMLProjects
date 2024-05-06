@@ -76,8 +76,6 @@ def generate_embeddings():
     #model_2 = create_feature_extractor(model, return_nodes=return_nodes)
     #model_2.to(device)
 
-    #for i in range(0,len(train_dataset.imgs)):
-    #    model_2(train_dataset.imgs[i])
     print(type(train_loader))
     start = time.time()
     with torch.no_grad():
@@ -254,64 +252,63 @@ def train_model(train_loader):
     #training 
     for epoch in range(n_epochs): 
         loss_sum = 0
-        number_of_batches = 0
+        #number_of_batches = 0
         for X_batch, y_batch in (training_set):
             y_pred = model.forward(X_batch.to(device))
             #print(y_batch.size())
             #print(torch.squeeze(y_pred).size)
             loss = loss_fct(torch.squeeze(y_pred),y_batch.float().to(device))
             loss_sum += loss.item()
-            number_of_batches += 1
+            #number_of_batches += 1
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
         scheduler.step()
 
-        training_loss.append(loss_sum/number_of_batches)
-        print(f'epoch: {epoch:2}  training_loss: {training_loss[-1]:10.8f}')
-        number_of_batches = 0
+        avg_loss = float(loss_sum)/len(train_loader)
+        training_loss.append(avg_loss)
+        print(f'epoch: {epoch} training_loss: {avg_loss}')
+
+        #number_of_batches = 0
         loss_sum = 0
         for X_batch, y_batch in (validation_set):
             y_pred = model.forward(X_batch.to(device))
             loss = loss_fct(torch.squeeze(y_pred),y_batch.float().to(device))
             loss_sum += loss.item()
-            number_of_batches += 1
+            #number_of_batches += 1
 
-        validation_loss.append(loss_sum/number_of_batches)
-        print(f'epoch: {epoch:2}  validation_loss: {validation_loss[-1]:10.8f}')
-
-        """if(len(validation_loss) >= 2):
-            if((validation_loss[-1] - validation_loss[-2]) > 0):
-                counter += 1
-                if(counter == 2):
-                    n_epochs = epoch
-                    break
-        """
-
+        avg_loss = float(loss_sum)/len(train_loader)
+        validation_loss.append(avg_loss)
+        print(f'epoch: {epoch} validation_loss: {avg_loss}')
            
         end = time.time()    
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
 
 
-
     loss_tot = []
     for epoch in range(n_epochs):  
-        number_of_batches = 0      
+        #number_of_batches = 0      
         loss_sum = 0
         for X_batch, y_batch in (train_loader):
             y_pred = model.forward(X_batch.to(device))
             loss = loss_fct(torch.squeeze(y_pred),y_batch.float().to(device))
             loss_sum += loss.item()
-            number_of_batches += 1
+            #number_of_batches += 1
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            #scheduler.step()
 
-        loss_tot.append(loss_sum/number_of_batches)
-        print(f'epoch: {epoch:2}  total_loss: {loss_tot[-1]:10.8f}')
+        #scheduler.step()
+
+        #loss_tot.append(loss_sum/number_of_batches)
+        avg_loss = float(loss_sum)/len(train_loader)
+        loss_tot.append(avg_loss)
+
+        print(f'epoch: {epoch} average training loss: {avg_loss}')
 
     return model
 
