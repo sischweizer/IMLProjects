@@ -4,7 +4,7 @@
 import numpy as np
 from torchvision import transforms
 from torchvision.models import resnet50, ResNet50_Weights, resnet152, ResNet152_Weights
-from torchvision.models import vit_b_16, ViT_B_16_Weights
+from torchvision.models import vit_l_16, ViT_L_16_Weights
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import os
 import torch
@@ -36,8 +36,8 @@ def generate_embeddings():
     # below. 
     # See https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models
     #weights = ResNet152_Weights.DEFAULT
-    weights = ViT_B_16_Weights.DEFAULT
-    train_transforms = transforms.Compose([transforms.ToTensor(), ViT_B_16_Weights.IMAGENET1K_V1.transforms()])
+    weights = ViT_L_16_Weights.DEFAULT
+    train_transforms = transforms.Compose([transforms.ToTensor(), ViT_L_16_Weights.IMAGENET1K_V1.transforms()])
     train_dataset = datasets.ImageFolder(root="dataset/", transform=train_transforms)
     #train_dataset = datasets.ImageFolder(root="dataset/", transform=ViT_B_32_Weights.IMAGENET1K_V1.transforms)
     # Hint: adjust batch_size and num_workers to your PC configuration, so that you don't 
@@ -54,7 +54,7 @@ def generate_embeddings():
 
     #model = resnet50(weights=ResNet50_Weights.DEFAULT, progress=True)
     #model = resnet152(weights=weights, progress=True)
-    model = vit_b_16(weights=weights, progress=True)
+    model = vit_l_16(weights=weights, progress=True)
     
     #model = resnet101(weights=ResNet101_Weights.DEFAULT, progress=True)
     model.to(device)
@@ -180,9 +180,9 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3000, 800), nn.BatchNorm1d(800), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3000, 600), nn.BatchNorm1d(600), nn.ReLU())
         #self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
-        self.fc3 = nn.Sequential(nn.Linear(800, 200), nn.BatchNorm1d(200), nn.ReLU())
+        self.fc3 = nn.Sequential(nn.Linear(600, 200), nn.BatchNorm1d(200), nn.ReLU())
         #self.fc4 = nn.Sequential(nn.Linear(800, 400), nn.BatchNorm1d(400), nn.LeakyReLU())
 
         if dropout:
@@ -219,7 +219,7 @@ def train_model(train_loader):
     output: model: torch.nn.Module, the trained model
     """
 
-    lr=0.001
+    lr=0.00001
     gamma=0.9
 
     model = Net()
@@ -353,7 +353,8 @@ if __name__ == '__main__':
     TEST_TRIPLETS = 'test_triplets.txt'
 
     # generate embedding for each image in the dataset
-    if(os.path.exists('dataset/embeddings.npy') == False):
+    if(True):
+    #if(os.path.exists('dataset/embeddings.npy') == False):
         generate_embeddings()
         print("finished embedingspart")
 
