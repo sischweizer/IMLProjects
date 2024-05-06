@@ -287,6 +287,9 @@ def train_model(train_loader):
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
 
+    model = Net()
+    model.train()
+    model.to(device)
 
     loss_tot = []
     for epoch in range(n_epochs):  
