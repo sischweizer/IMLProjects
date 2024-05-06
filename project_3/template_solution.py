@@ -247,7 +247,7 @@ def train_model(train_loader):
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     #scheduler = StepLR(optimizer,step_size=100, gamma=gamma)
-    #scheduler = ExponentialLR(optimizer, gamma=gamma)
+    scheduler = ExponentialLR(optimizer, gamma=gamma)
     #optimizer = torch.optim.SGD(model.parameters(), lr=0.006, momentum=0.9)
     start = time.time()
 
@@ -266,7 +266,7 @@ def train_model(train_loader):
             loss.backward()
             optimizer.step()
 
-        #scheduler.step()
+        scheduler.step()
 
         avg_loss = float(loss_sum)/len(training_set)
         training_loss.append(avg_loss)
@@ -293,7 +293,7 @@ def train_model(train_loader):
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    #scheduler = ExponentialLR(optimizer, gamma=gamma)
+    scheduler = ExponentialLR(optimizer, gamma=gamma)
 
     loss_tot = []
     for epoch in range(n_epochs):     
@@ -307,7 +307,7 @@ def train_model(train_loader):
             loss.backward()
             optimizer.step()
 
-        #scheduler.step()
+        scheduler.step()
 
         #loss_tot.append(loss_sum/number_of_batches)
         avg_loss = float(loss_sum)/len(train_loader)
