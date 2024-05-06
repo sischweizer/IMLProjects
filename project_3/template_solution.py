@@ -38,7 +38,7 @@ def generate_embeddings():
     #weights = ResNet152_Weights.DEFAULT
     weights = ViT_B_16_Weights.DEFAULT
     train_transforms = transforms.Compose([transforms.ToTensor(), ViT_B_16_Weights.IMAGENET1K_V1.transforms()])
-    train_dataset = datasets.ImageFolder(root="project_3/dataset/", transform=train_transforms)
+    train_dataset = datasets.ImageFolder(root="dataset/", transform=train_transforms)
     #train_dataset = datasets.ImageFolder(root="dataset/", transform=ViT_B_32_Weights.IMAGENET1K_V1.transforms)
     # Hint: adjust batch_size and num_workers to your PC configuration, so that you don't 
     # run out of memory (VRAM if on GPU, RAM if on CPU)
@@ -98,7 +98,7 @@ def generate_embeddings():
     end = time.time()    
     print('Time consumption {} sec'.format(end - start))    
     
-    np.save('project_3/dataset/embeddings.npy', embeddings)
+    np.save('dataset/embeddings.npy', embeddings)
     
 
 def get_data(file, train=True):
@@ -117,10 +117,10 @@ def get_data(file, train=True):
             triplets.append(line)
 
     # generate training data from triplets
-    train_dataset = datasets.ImageFolder(root="project_3/dataset/",
+    train_dataset = datasets.ImageFolder(root="dataset/",
                                          transform=None)
     filenames = [s[0].split('/')[-1].split('\\')[-1].replace('.jpg', '') for s in train_dataset.samples]
-    embeddings = np.load('project_3/dataset/embeddings.npy')
+    embeddings = np.load('dataset/embeddings.npy')
     # TODO: Normalize the embeddings
     
     
@@ -342,18 +342,18 @@ def test_model(model, loader):
             
         predictions = np.vstack(predictions)
  
-    np.savetxt("project_3/results.txt", predictions, fmt='%i')
+    np.savetxt("results.txt", predictions, fmt='%i')
 
 
 # Main function. You don't have to change this
 if __name__ == '__main__':
-    TRAIN_TRIPLETS = 'project_3/train_triplets.txt'
-    TEST_TRIPLETS = 'project_3/test_triplets.txt'
+    TRAIN_TRIPLETS = 'train_triplets.txt'
+    TEST_TRIPLETS = 'test_triplets.txt'
 
     # generate embedding for each image in the dataset
-    if(os.path.exists('project_3/dataset/embeddings.npy') == False):
-        generate_embeddings()
-        print("finished embedingspart")
+    #if(os.path.exists('dataset/embeddings.npy') == False):
+    generate_embeddings()
+    print("finished embedingspart")
 
     # load the training data
     X, y = get_data(TRAIN_TRIPLETS)
