@@ -225,7 +225,7 @@ def train_model(train_loader):
     model = Net()
     model.train()
     model.to(device)
-    n_epochs = 10
+    n_epochs = 20
     # TODO: define a loss function, optimizer and proceed with training. Hint: use the part 
     # of the training data as a validation split. After each epoch, compute the loss on the 
     # validation split and print it out. This enables you to see how your model is performing 
@@ -353,8 +353,8 @@ if __name__ == '__main__':
     TEST_TRIPLETS = 'test_triplets.txt'
 
     # generate embedding for each image in the dataset
-    if(True):
-    #if(os.path.exists('dataset/embeddings.npy') == False):
+    #if(True):
+    if(os.path.exists('dataset/embeddings.npy') == False):
         generate_embeddings()
         print("finished embedingspart")
 
