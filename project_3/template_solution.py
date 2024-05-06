@@ -174,15 +174,15 @@ class Net(nn.Module):
     """
     The model class, which defines our classifier.
     """
-    def __init__(self, dropout=True):
+    def __init__(self, dropout=False):
         """
         The constructor of the model.
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3000, 1000), nn.BatchNorm1d(1000), nn.ReLU())
-        self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
-        self.fc3 = nn.Sequential(nn.Linear(400, 200), nn.BatchNorm1d(200), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3000, 800), nn.BatchNorm1d(800), nn.ReLU())
+        #self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
+        self.fc3 = nn.Sequential(nn.Linear(800, 200), nn.BatchNorm1d(200), nn.ReLU())
         #self.fc4 = nn.Sequential(nn.Linear(800, 400), nn.BatchNorm1d(400), nn.LeakyReLU())
 
         if dropout:
@@ -203,7 +203,7 @@ class Net(nn.Module):
         x = x.view(-1, 3000)
         
         x = self.fc1(x)
-        x = self.fc2(x)
+        #x = self.fc2(x)
         x = self.fc3(x)
         #x = self.fc4(x)
         x = self.fc5(x)
@@ -218,6 +218,10 @@ def train_model(train_loader):
     
     output: model: torch.nn.Module, the trained model
     """
+
+    lr=0.001
+    gamma=0.9
+
     model = Net()
     model.train()
     model.to(device)
@@ -241,9 +245,9 @@ def train_model(train_loader):
     training_loss = []
     validation_loss = []
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    #scheduler = StepLR(optimizer,step_size=100, gamma=0.9)
-    scheduler = ExponentialLR(optimizer, gamma=0.9)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    #scheduler = StepLR(optimizer,step_size=100, gamma=gamma)
+    #scheduler = ExponentialLR(optimizer, gamma=gamma)
     #optimizer = torch.optim.SGD(model.parameters(), lr=0.006, momentum=0.9)
     start = time.time()
 
@@ -252,32 +256,27 @@ def train_model(train_loader):
     #training 
     for epoch in range(n_epochs): 
         loss_sum = 0
-        #number_of_batches = 0
         for X_batch, y_batch in (training_set):
             y_pred = model.forward(X_batch.to(device))
-            #print(y_batch.size())
-            #print(torch.squeeze(y_pred).size)
+
             loss = loss_fct(torch.squeeze(y_pred),y_batch.float().to(device))
             loss_sum += loss.item()
-            #number_of_batches += 1
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        scheduler.step()
+        #scheduler.step()
 
         avg_loss = float(loss_sum)/len(training_set)
         training_loss.append(avg_loss)
         print(f'epoch: {epoch} training_loss: {avg_loss}')
 
-        #number_of_batches = 0
         loss_sum = 0
         for X_batch, y_batch in (validation_set):
             y_pred = model.forward(X_batch.to(device))
             loss = loss_fct(torch.squeeze(y_pred),y_batch.float().to(device))
             loss_sum += loss.item()
-            #number_of_batches += 1
 
         avg_loss = float(loss_sum)/len(validation_set)
         validation_loss.append(avg_loss)
@@ -287,22 +286,22 @@ def train_model(train_loader):
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
 
+    exit(0)
+
     model = Net()
     model.train()
     model.to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    #scheduler = ExponentialLR(optimizer, gamma=0.9)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    #scheduler = ExponentialLR(optimizer, gamma=gamma)
 
     loss_tot = []
-    for epoch in range(n_epochs):  
-        #number_of_batches = 0      
+    for epoch in range(n_epochs):     
         loss_sum = 0
         for X_batch, y_batch in (train_loader):
             y_pred = model.forward(X_batch.to(device))
             loss = loss_fct(torch.squeeze(y_pred),y_batch.float().to(device))
             loss_sum += loss.item()
-            #number_of_batches += 1
 
             optimizer.zero_grad()
             loss.backward()
