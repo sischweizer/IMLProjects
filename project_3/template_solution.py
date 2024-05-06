@@ -301,7 +301,7 @@ def train_model(train_loader):
     model = Net()
     model.train()
     model.to(device)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
+    #optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = ExponentialLR(optimizer, gamma=gamma)
 
