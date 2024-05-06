@@ -38,7 +38,7 @@ def generate_embeddings():
     #weights = ResNet152_Weights.DEFAULT
     weights = ViT_B_16_Weights.DEFAULT
     train_transforms = transforms.Compose([transforms.ToTensor(), ViT_B_16_Weights.IMAGENET1K_V1.transforms()])
-    train_dataset = datasets.ImageFolder(root="dataset/", transform=train_transforms)
+    train_dataset = datasets.ImageFolder(root="project_3/dataset/", transform=train_transforms)
     #train_dataset = datasets.ImageFolder(root="dataset/", transform=ViT_B_32_Weights.IMAGENET1K_V1.transforms)
     # Hint: adjust batch_size and num_workers to your PC configuration, so that you don't 
     # run out of memory (VRAM if on GPU, RAM if on CPU)
@@ -83,7 +83,7 @@ def generate_embeddings():
     with torch.no_grad():
         for i, (img, _) in enumerate(train_loader):
             print(i)
-            print(np.shape(img))
+            #print(np.shape(img))
             
             data = (img).to(device)
             #print(np.shape(data))
@@ -98,7 +98,7 @@ def generate_embeddings():
     end = time.time()    
     print('Time consumption {} sec'.format(end - start))    
     
-    np.save('dataset/embeddings.npy', embeddings)
+    np.save('project_3/dataset/embeddings.npy', embeddings)
     
 
 def get_data(file, train=True):
@@ -117,10 +117,10 @@ def get_data(file, train=True):
             triplets.append(line)
 
     # generate training data from triplets
-    train_dataset = datasets.ImageFolder(root="dataset/",
+    train_dataset = datasets.ImageFolder(root="project_3/dataset/",
                                          transform=None)
     filenames = [s[0].split('/')[-1].split('\\')[-1].replace('.jpg', '') for s in train_dataset.samples]
-    embeddings = np.load('dataset/embeddings.npy')
+    embeddings = np.load('project_3/dataset/embeddings.npy')
     # TODO: Normalize the embeddings
     
     
@@ -182,15 +182,15 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3000, 1000), nn.BatchNorm1d(1000), nn.ReLU())
-        self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
-        self.fc3 = nn.Sequential(nn.Linear(400, 200), nn.BatchNorm1d(200), nn.ReLU())
-        #self.fc4 = nn.Sequential(nn.Linear(800, 400), nn.BatchNorm1d(400), nn.LeakyReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3000, 1500), nn.BatchNorm1d(1500), nn.ReLU())
+        #self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
+        self.fc3 = nn.Sequential(nn.Linear(1500, 700), nn.BatchNorm1d(700), nn.ReLU())
+        #self.fc4 = nn.Sequential(nn.Linear(700, 200), nn.BatchNorm1d(4200), nn.LeakyReLU())
 
         if dropout:
-            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(200, 1))
+            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(700, 1))
         else:
-            self.fc5 = nn.Linear(200, 1)
+            self.fc5 = nn.Linear(700, 1)
         #torch.nn.init.kaiming_normal_(self.fc5.weight, mode='fan_out', nonlinearity='relu')
         
 
@@ -205,7 +205,7 @@ class Net(nn.Module):
         x = x.view(-1, 3000)
         
         x = self.fc1(x)
-        x = self.fc2(x)
+        #x = self.fc2(x)
         x = self.fc3(x)
         #x = self.fc4(x)
         x = self.fc5(x)
@@ -223,7 +223,7 @@ def train_model(train_loader):
     model = Net()
     model.train()
     model.to(device)
-    n_epochs = 10
+    n_epochs = 20
     # TODO: define a loss function, optimizer and proceed with training. Hint: use the part 
     # of the training data as a validation split. After each epoch, compute the loss on the 
     # validation split and print it out. This enables you to see how your model is performing 
@@ -233,7 +233,7 @@ def train_model(train_loader):
 
     #validation set split
     g = torch.Generator(device="cpu")
-    data_train, data_test = random_split(train_loader.dataset, [0.8, 0.2], generator= g)
+    data_train, data_test = random_split(train_loader.dataset, [0.7, 0.3], generator= g)
 
     training_set = DataLoader(list(data_train), shuffle = False, batch_size=batch_size)
     validation_set = DataLoader(list(data_test), shuffle = False, batch_size=batch_size)
@@ -242,15 +242,18 @@ def train_model(train_loader):
     loss_fct = torch.nn.BCEWithLogitsLoss()
     training_loss = []
     validation_loss = []
+    lr = 0.000015
+    gamma = 0.9
+    momentum = 0.5
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+    #optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     #scheduler = StepLR(optimizer,step_size=100, gamma=0.9)
-    #scheduler = ExponentialLR(optimizer, gamma=0.9)
-    #optimizer = torch.optim.SGD(model.parameters(), lr=0.006, momentum=0.9)
+    scheduler = ExponentialLR(optimizer, gamma=gamma)
     start = time.time()
 
     total_size = 3000
-    
+    counter = 0
     #training 
     for epoch in range(n_epochs): 
         loss_sum = 0
@@ -265,7 +268,7 @@ def train_model(train_loader):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            #scheduler.step()
+        scheduler.step()
 
         training_loss.append(loss_sum/number_of_batches)
         print(f'epoch: {epoch:2}  training_loss: {training_loss[-1]:10.8f}')
@@ -278,48 +281,30 @@ def train_model(train_loader):
             number_of_batches += 1
 
         validation_loss.append(loss_sum/number_of_batches)
-
         print(f'epoch: {epoch:2}  validation_loss: {validation_loss[-1]:10.8f}')
-            ##############
 
-        #x_train = torch.empty(len(training_set),tot_size)
-        #y_train = torch.empty(len(training_set),1)
-        #for i, [X, y] in enumerate(training_set):
-        #    x_train[i] = X
-        #    y_train[i] = y
-
-        #y_pred = model.forward(x_train.to(device))
-
-        #loss = loss_fct(y_pred,y_train.float().to(device))
-        #training_loss.append(loss)
-
-        #optimizer.zero_grad()
-        #loss.backward()
-        #optimizer.step()
-        #scheduler.step()
-        #print(f'epoch: {epoch:2}  training_loss: {loss.item():10.8f}')
+        if(len(validation_loss) >= 2):
+            if((validation_loss[-1] - validation_loss[-2]) > 0):
+                counter += 1
+                if(counter == 2):
+                    n_epochs = epoch - 2
+                    break
         
-        #x_val = torch.empty(len(validation_set),tot_size)
-        #y_val = torch.empty(len(validation_set),1)
-        #for i, [X, y] in enumerate(validation_set):
-        #    x_val[i] = X
-        #    y_val[i] = y
-        #y_pred = model.forward(x_val.to(device))     
-        #loss = loss_fct(y_pred,y_val.float().to(device)) 
-        #validation_loss.append(loss)
-        #print(f'epoch: {epoch:2}  validation_loss: {loss.item():10.8f}')
-        
+
+           
         end = time.time()    
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
 
-          
+
     
-    #print("training loss:")
-    #print(training_loss)
-    #print("validation loss:")
-    #print(validation_loss)
-    
+    model = Net()
+    model.train()
+    model.to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    scheduler = ExponentialLR(optimizer, gamma=gamma)
+
     loss_tot = []
     for epoch in range(n_epochs):  
         number_of_batches = 0      
@@ -333,27 +318,11 @@ def train_model(train_loader):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            #scheduler.step()
+        scheduler.step()
 
         loss_tot.append(loss_sum/number_of_batches)
         print(f'epoch: {epoch:2}  total_loss: {loss_tot[-1]:10.8f}')
 
-        """x_tot = torch.empty(len(train_loader.dataset),tot_size)
-        y_tot = torch.empty(len(train_loader.dataset),1)
-        for i, [X, y] in enumerate(train_loader.dataset):
-            x_tot[i] = X
-            y_tot[i] = y
-        y_pred = model.forward(x_tot.to(device))
-             
-        loss = loss_fct(y_pred,y_tot.float().to(device)) 
-        loss_tot.append(loss)
-        print(f'epoch: {epoch:2}  total_loss: {loss.item():10.8f}')
-        
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        """
-    #print(loss_tot)
     return model
 
 def test_model(model, loader):
@@ -383,18 +352,18 @@ def test_model(model, loader):
             
         predictions = np.vstack(predictions)
  
-    np.savetxt("results.txt", predictions, fmt='%i')
+    np.savetxt("project_3/results.txt", predictions, fmt='%i')
 
 
 # Main function. You don't have to change this
 if __name__ == '__main__':
-    TRAIN_TRIPLETS = 'train_triplets.txt'
-    TEST_TRIPLETS = 'test_triplets.txt'
+    TRAIN_TRIPLETS = 'project_3/train_triplets.txt'
+    TEST_TRIPLETS = 'project_3/test_triplets.txt'
 
     # generate embedding for each image in the dataset
-    #if(os.path.exists('dataset/embeddings.npy') == False):
-    generate_embeddings()
-        #print("finished embedingspart")
+    if(os.path.exists('project_3/dataset/embeddings.npy') == False):
+        generate_embeddings()
+        print("finished embedingspart")
 
     # load the training data
     X, y = get_data(TRAIN_TRIPLETS)
