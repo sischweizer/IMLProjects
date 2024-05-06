@@ -348,9 +348,9 @@ if __name__ == '__main__':
     TEST_TRIPLETS = 'test_triplets.txt'
 
     # generate embedding for each image in the dataset
-    #if(os.path.exists('dataset/embeddings.npy') == False):
-    generate_embeddings()
-    print("finished embedingspart")
+    if(os.path.exists('dataset/embeddings.npy') == False):
+        generate_embeddings()
+        print("finished embedingspart")
 
     # load the training data
     X, y = get_data(TRAIN_TRIPLETS)
