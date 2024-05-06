@@ -291,6 +291,9 @@ def train_model(train_loader):
     model.train()
     model.to(device)
 
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    scheduler = ExponentialLR(optimizer, gamma=0.9)
+
     loss_tot = []
     for epoch in range(n_epochs):  
         #number_of_batches = 0      
