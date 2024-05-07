@@ -208,8 +208,8 @@ class Net(nn.Module):
         x = x.view(-1, 3072)
         
         x = self.fc1(x)
-        #x = self.fc2(x)
-        #x = self.fc3(x)
+        x = self.fc2(x)
+        x = self.fc3(x)
         #x = self.fc4(x)
         x = self.fc5(x)
         return x
@@ -243,7 +243,7 @@ def train_model(train_loader):
     output: model: torch.nn.Module, the trained model
     """
 
-    lr=0.0001
+    lr=0.0005
     gamma=0.9
 
     model = Net()
@@ -315,24 +315,6 @@ def train_model(train_loader):
             loss_sum += loss.item()
 
             correct_predictions += get_loss(y_pred, y_batch)
-            #predicted = y_pred.detach().cpu().numpy()
-            # Rounding the predictions to 0 or 1
-            
-            #predicted[predicted >= 0.5] = 1
-            #predicted[predicted < 0.5] = 0
-
-            #print(len(y_batch))
-            #print(np.shape(y_batch))
-            #print(len(predicted))
-            #print(np.shape(predicted))
-
-            #for pred, y in zip(predicted, y_batch):
-                #print(int(pred.item()))
-                #print(int(y.item()))
-                #if (int(pred.item()) == int(y.item())):
-                    #correct_predictions += 1
-
-        #print(f"correct prediction ratio: {correct_ratio}")
 
 
         avg_loss = float(loss_sum)/len(validation_set)
