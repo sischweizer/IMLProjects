@@ -240,7 +240,7 @@ def train_model(train_loader):
 
     #validation set split
     g = torch.Generator(device="cpu")
-    data_train, data_test = random_split(train_loader.dataset, [0.7, 0.3], generator= g)
+    data_train, data_test = random_split(train_loader.dataset, [0.65, 0.35], generator= g)
 
     training_set = DataLoader(list(data_train), shuffle = False, batch_size=batch_size)
     validation_set = DataLoader(list(data_test), shuffle = False, batch_size=batch_size)
@@ -318,6 +318,8 @@ def train_model(train_loader):
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
 
+
+    exit(0)
 
     model = Net()
     model.train()
