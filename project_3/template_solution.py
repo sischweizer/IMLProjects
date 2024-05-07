@@ -319,8 +319,6 @@ def train_model(train_loader):
         start = time.time()
 
 
-    exit(0)
-
     model = Net()
     model.train()
     model.to(device)
