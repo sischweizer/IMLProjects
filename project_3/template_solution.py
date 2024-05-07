@@ -185,15 +185,15 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3072, 800), nn.BatchNorm1d(800), nn.ReLU())
-        self.fc2 = nn.Sequential(nn.Linear(800, 400), nn.BatchNorm1d(400), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3072, 900), nn.BatchNorm1d(900), nn.ReLU())
+        self.fc2 = nn.Sequential(nn.Linear(900, 400), nn.BatchNorm1d(400), nn.ReLU())
         self.fc3 = nn.Sequential(nn.Linear(400, 100), nn.BatchNorm1d(100), nn.ReLU())
-        #self.fc4 = nn.Sequential(nn.Linear(800, 400), nn.BatchNorm1d(400), nn.LeakyReLU())
+        self.fc4 = nn.Sequential(nn.Linear(100, 50), nn.BatchNorm1d(50), nn.LeakyReLU())
 
         if dropout:
-            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(100, 1), nn.ReLU())
+            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(50, 1), nn.ReLU())
         else:
-            self.fc5 = nn.Sequential(nn.Linear(100, 1), nn.ReLU())
+            self.fc5 = nn.Sequential(nn.Linear(50, 1), nn.ReLU())
         #torch.nn.init.kaiming_normal_(self.fc5.weight, mode='fan_out', nonlinearity='relu')
         
 
@@ -210,7 +210,7 @@ class Net(nn.Module):
         x = self.fc1(x)
         x = self.fc2(x)
         x = self.fc3(x)
-        #x = self.fc4(x)
+        x = self.fc4(x)
         x = self.fc5(x)
         return x
 
@@ -243,13 +243,13 @@ def train_model(train_loader):
     output: model: torch.nn.Module, the trained model
     """
 
-    lr=0.00008
+    lr=0.00009
     gamma=0.9
 
     model = Net()
     model.train()
     model.to(device)
-    n_epochs = 25
+    n_epochs = 30
     # TODO: define a loss function, optimizer and proceed with training. Hint: use the part 
     # of the training data as a validation split. After each epoch, compute the loss on the 
     # validation split and print it out. This enables you to see how your model is performing 
@@ -259,7 +259,7 @@ def train_model(train_loader):
 
     #validation set split
     g = torch.Generator(device="cpu")
-    data_train, data_test = random_split(train_loader.dataset, [0.65, 0.35], generator= g)
+    data_train, data_test = random_split(train_loader.dataset, [0.63, 0.37], generator= g)
 
     training_set = DataLoader(list(data_train), shuffle = False, batch_size=batch_size)
     validation_set = DataLoader(list(data_test), shuffle = False, batch_size=batch_size)
@@ -332,14 +332,16 @@ def train_model(train_loader):
         if (correct_ratio > best_prediction):
             best_prediction = correct_ratio
             best_epoch = epoch
-            print(f"epoch {epoch} improved validation loss, new best: {best_prediction}")
+            print(f"epoch {epoch} improved validation set predictions, new best: {best_prediction}")
         elif (epoch > best_epoch + 2):
-            print("validation loss has not improved for 3 epochs, ending training")
+            print("predictions on validation set have not improved for 3 epochs, ending training")
             break
 
         end = time.time()    
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
+
+    print(f"finished training on split data, best epoch: {best_epoch} with validation set prediction rate: {best_prediction}")
 
     #exit(0)
 
