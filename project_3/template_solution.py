@@ -55,43 +55,48 @@ def generate_embeddings():
     #model = resnet50(weights=ResNet50_Weights.DEFAULT, progress=True)
     #model = resnet152(weights=weights, progress=True)
     model = vit_l_16(weights=weights, progress=True)
-    
+    model.eval()
     #model = resnet101(weights=ResNet101_Weights.DEFAULT, progress=True)
     model.to(device)
-    embedding_size = 1000 # Dummy variable, replace with the actual embedding size once you 
+    embedding_size = 1024 # Dummy variable, replace with the actual embedding size once you 
     # pick your model
     num_images = len(train_dataset)
     embeddings = np.zeros((num_images, embedding_size))
     # TODO: Use the model to extract the embeddings. Hint: remove the last layers of the 
     # model to access the embeddings the model generates. 
     
-    #train_nodes, eval_nodes = get_graph_node_names(resnet50())
+    #train_nodes, eval_nodes = get_graph_node_names(model)
     #print(train_nodes)
-    model_2 = torch.nn.Sequential(*(list(model.children())[:-1])).to(device)
+
+    #model_2 = torch.nn.Sequential(*(list(model.children())[:-1])).to(device)
     
-    #return_nodes = {
-    #    'fc': 'layer4',
-    #}
+    return_nodes = {
+        #'encoder.ln': 'encoder.ln',
+        #'encoder.layers.encoder_layer_11': 'encoder.layers.encoder_layer_11',
+        'getitem_5': 'getitem_5',
+        #'heads.head': 'heads.head',
+    }
 
-    #model_2 = create_feature_extractor(model, return_nodes=return_nodes)
-    #model_2.to(device)
-
-    print(type(train_loader))
+    model_2 = create_feature_extractor(model, return_nodes=return_nodes)
+    model_2.eval()
+    
+    model_2.to(device)
+    
+    #print(type(train_loader))
     start = time.time()
     with torch.no_grad():
         for i, (img, _) in enumerate(train_loader):
-            print(i)
+            print(f"image batch {i} / {len(train_loader)}")
             #print(np.shape(img))
             
             data = (img).to(device)
             #print(np.shape(data))
-            result = model(data)
+            result = model_2(data)['getitem_5']
             #print(result)
             #print(len(result))
             #print(np.shape(result))
+
             embeddings[i*batch_size:i*batch_size+len(result)] = result.cpu()
-            #print(embeddings)
-            #break
         
     end = time.time()    
     print('Time consumption {} sec'.format(end - start))    
@@ -174,21 +179,21 @@ class Net(nn.Module):
     """
     The model class, which defines our classifier.
     """
-    def __init__(self, dropout=False):
+    def __init__(self, dropout=True):
         """
         The constructor of the model.
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3000, 600), nn.BatchNorm1d(600), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3072, 600), nn.BatchNorm1d(600), nn.ReLU())
         #self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
         self.fc3 = nn.Sequential(nn.Linear(600, 200), nn.BatchNorm1d(200), nn.ReLU())
         #self.fc4 = nn.Sequential(nn.Linear(800, 400), nn.BatchNorm1d(400), nn.LeakyReLU())
 
         if dropout:
-            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(200, 1))
+            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(200, 1), nn.ReLU())
         else:
-            self.fc5 = nn.Linear(200, 1)
+            self.fc5 = nn.Sequential(nn.Linear(200, 1), nn.ReLU())
         #torch.nn.init.kaiming_normal_(self.fc5.weight, mode='fan_out', nonlinearity='relu')
         
 
@@ -200,7 +205,7 @@ class Net(nn.Module):
 
         output: x: torch.Tensor, the output of the model
         """
-        x = x.view(-1, 3000)
+        x = x.view(-1, 3072)
         
         x = self.fc1(x)
         #x = self.fc2(x)
@@ -219,7 +224,7 @@ def train_model(train_loader):
     output: model: torch.nn.Module, the trained model
     """
 
-    lr=0.00001
+    lr=0.0001
     gamma=0.9
 
     model = Net()
@@ -241,7 +246,7 @@ def train_model(train_loader):
     validation_set = DataLoader(list(data_test), shuffle = False, batch_size=batch_size)
 
 
-    loss_fct = torch.nn.BCEWithLogitsLoss()
+    loss_fct = torch.nn.CrossEntropyLoss()
     training_loss = []
     validation_loss = []
 
@@ -251,8 +256,8 @@ def train_model(train_loader):
     #optimizer = torch.optim.SGD(model.parameters(), lr=0.006, momentum=0.9)
     start = time.time()
 
-    total_size = 3000
-    counter = 0
+    #total_size = 3000
+    #counter = 0
     #training 
     for epoch in range(n_epochs): 
         loss_sum = 0
@@ -272,19 +277,47 @@ def train_model(train_loader):
         training_loss.append(avg_loss)
         print(f'epoch: {epoch} training_loss: {avg_loss}')
 
+        correct_predictions = 0
+
         loss_sum = 0
-        for X_batch, y_batch in (validation_set):
+        for X_batch, y_batch in validation_set:
             y_pred = model.forward(X_batch.to(device))
+            
+
             loss = loss_fct(torch.squeeze(y_pred),y_batch.float().to(device))
             loss_sum += loss.item()
+
+            predicted = y_pred.detach().cpu().numpy()
+            # Rounding the predictions to 0 or 1
+            
+            predicted[predicted >= 0.5] = 1
+            predicted[predicted < 0.5] = 0
+
+            #print(len(y_batch))
+            #print(np.shape(y_batch))
+            #print(len(predicted))
+            #print(np.shape(predicted))
+
+            for pred, y in zip(predicted, y_batch):
+                #print(int(pred.item()))
+                #print(int(y.item()))
+                if (int(pred.item()) == int(y.item())):
+                    correct_predictions += 1
+
+        #print(f"correct prediction ratio: {correct_ratio}")
+
 
         avg_loss = float(loss_sum)/len(validation_set)
         validation_loss.append(avg_loss)
         print(f'epoch: {epoch} validation_loss: {avg_loss}')
+
+        correct_ratio = float(correct_predictions)/len(validation_set.dataset)
+        print(f"epoch: {epoch} correct predictions: {correct_predictions} / {len(validation_set.dataset)} = {correct_ratio}")
            
         end = time.time()    
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
+
 
     model = Net()
     model.train()
