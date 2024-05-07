@@ -327,7 +327,7 @@ def train_model(train_loader):
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
 
-    exit(0)
+    #exit(0)
 
     model = Net()
     model.train()
