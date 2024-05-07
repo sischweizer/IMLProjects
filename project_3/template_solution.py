@@ -185,15 +185,15 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3072, 800), nn.BatchNorm1d(800), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3072, 700), nn.BatchNorm1d(700), nn.ReLU())
         #self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
-        self.fc3 = nn.Sequential(nn.Linear(800, 300), nn.BatchNorm1d(300), nn.ReLU())
+        self.fc3 = nn.Sequential(nn.Linear(700, 200), nn.BatchNorm1d(200), nn.ReLU())
         #self.fc4 = nn.Sequential(nn.Linear(800, 400), nn.BatchNorm1d(400), nn.LeakyReLU())
 
         if dropout:
-            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(300, 1), nn.ReLU())
+            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(200, 1), nn.ReLU())
         else:
-            self.fc5 = nn.Sequential(nn.Linear(300, 1), nn.ReLU())
+            self.fc5 = nn.Sequential(nn.Linear(200, 1), nn.ReLU())
         #torch.nn.init.kaiming_normal_(self.fc5.weight, mode='fan_out', nonlinearity='relu')
         
 
@@ -224,7 +224,7 @@ def train_model(train_loader):
     output: model: torch.nn.Module, the trained model
     """
 
-    lr=0.00005
+    lr=0.00003
     gamma=0.9
 
     model = Net()
