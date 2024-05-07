@@ -265,8 +265,8 @@ def train_model(train_loader):
     validation_set = DataLoader(list(data_test), shuffle = False, batch_size=batch_size)
 
 
-    loss_fct = torch.nn.CrossEntropyLoss()
-    #loss_fct = torch.nn.BCEWithLogitsLoss()
+    #loss_fct = torch.nn.CrossEntropyLoss()
+    loss_fct = torch.nn.BCEWithLogitsLoss()
     training_loss = []
     validation_loss = []
 
@@ -279,6 +279,10 @@ def train_model(train_loader):
     #total_size = 3000
     #counter = 0
     #training 
+
+    best_epoch = 0
+    best_prediction = 0
+
     for epoch in range(n_epochs): 
         loss_sum = 0
         correct_predictions = 0
@@ -306,6 +310,8 @@ def train_model(train_loader):
 
         correct_predictions = 0
 
+        
+
         loss_sum = 0
         for X_batch, y_batch in validation_set:
             y_pred = model(X_batch.to(device))
@@ -323,6 +329,14 @@ def train_model(train_loader):
         correct_ratio = float(correct_predictions)/len(validation_set.dataset)
         print(f"epoch: {epoch} validation set correct predictions: {correct_predictions} / {len(validation_set.dataset)} = {correct_ratio}")
            
+        if (correct_ratio > best_prediction):
+            best_prediction = correct_ratio
+            best_epoch = epoch
+            print(f"epoch {epoch} improved validation loss, new best: {best_prediction}")
+        elif (epoch > best_epoch + 2):
+            print("validation loss has not improved for 3 epochs, ending training")
+            break
+
         end = time.time()    
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
@@ -337,7 +351,9 @@ def train_model(train_loader):
     scheduler = ExponentialLR(optimizer, gamma=gamma)
 
     loss_tot = []
-    for epoch in range(n_epochs):     
+    #for epoch in range(n_epochs):
+    print(f"training on the entire data set for {best_epoch+1} epochs")
+    for epoch in range(best_epoch+1):     
         loss_sum = 0
         for X_batch, y_batch in (train_loader):
             y_pred = model.forward(X_batch.to(device))
