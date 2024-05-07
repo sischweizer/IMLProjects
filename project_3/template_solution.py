@@ -298,7 +298,7 @@ def train_model(train_loader):
         scheduler.step()
 
         correct_ratio = float(correct_predictions)/len(validation_set.dataset)
-        print(f"epoch: {epoch} validation set correct predictions: {correct_predictions} / {len(validation_set.dataset)} = {correct_ratio}")
+        print(f"epoch: {epoch} train set correct predictions: {correct_predictions} / {len(validation_set.dataset)} = {correct_ratio}")
 
         avg_loss = float(loss_sum)/len(training_set)
         training_loss.append(avg_loss)
