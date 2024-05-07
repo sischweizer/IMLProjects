@@ -243,7 +243,7 @@ def train_model(train_loader):
     output: model: torch.nn.Module, the trained model
     """
 
-    lr=0.001
+    lr=0.01
     gamma=0.9
 
     model = Net()
