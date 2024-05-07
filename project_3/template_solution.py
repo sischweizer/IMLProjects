@@ -224,7 +224,7 @@ def train_model(train_loader):
     output: model: torch.nn.Module, the trained model
     """
 
-    lr=0.0001
+    lr=0.00005
     gamma=0.9
 
     model = Net()
@@ -246,7 +246,8 @@ def train_model(train_loader):
     validation_set = DataLoader(list(data_test), shuffle = False, batch_size=batch_size)
 
 
-    loss_fct = torch.nn.CrossEntropyLoss()
+    #loss_fct = torch.nn.CrossEntropyLoss()
+    loss_fct = torch.nn.BCEWithLogitsLoss()
     training_loss = []
     validation_loss = []
 
@@ -318,6 +319,7 @@ def train_model(train_loader):
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
 
+    exit(0)
 
     model = Net()
     model.train()
