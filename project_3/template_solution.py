@@ -214,6 +214,25 @@ class Net(nn.Module):
         x = self.fc5(x)
         return x
 
+def get_loss(y_pred, y_batch):
+
+    correct_predictions = 0
+    predicted = y_pred.detach().cpu().numpy()
+    
+    predicted[predicted >= 0.5] = 1
+    predicted[predicted < 0.5] = 0
+
+    #print(np.shape(y_batch))
+    #print(np.shape(predicted))
+
+    for pred, y in zip(predicted, y_batch):
+        #print(int(pred.item()))
+        #print(int(y.item()))
+        if (int(pred.item()) == int(y.item())):
+            correct_predictions += 1
+
+    return correct_predictions
+
 def train_model(train_loader):
     """
     The training procedure of the model; it accepts the training data, defines the model 
@@ -224,7 +243,7 @@ def train_model(train_loader):
     output: model: torch.nn.Module, the trained model
     """
 
-    lr=0.00005
+    lr=0.001
     gamma=0.9
 
     model = Net()
@@ -262,6 +281,7 @@ def train_model(train_loader):
     #training 
     for epoch in range(n_epochs): 
         loss_sum = 0
+        correct_predictions = 0
         for X_batch, y_batch in (training_set):
             y_pred = model.forward(X_batch.to(device))
 
@@ -272,7 +292,13 @@ def train_model(train_loader):
             loss.backward()
             optimizer.step()
 
+            correct_predictions += get_loss(y_pred, y_batch)
+
+    
         scheduler.step()
+
+        correct_ratio = float(correct_predictions)/len(validation_set.dataset)
+        print(f"epoch: {epoch} validation set correct predictions: {correct_predictions} / {len(validation_set.dataset)} = {correct_ratio}")
 
         avg_loss = float(loss_sum)/len(training_set)
         training_loss.append(avg_loss)
@@ -288,22 +314,23 @@ def train_model(train_loader):
             loss = loss_fct(torch.squeeze(y_pred),y_batch.float().to(device))
             loss_sum += loss.item()
 
-            predicted = y_pred.detach().cpu().numpy()
+            correct_predictions += get_loss(y_pred, y_batch)
+            #predicted = y_pred.detach().cpu().numpy()
             # Rounding the predictions to 0 or 1
             
-            predicted[predicted >= 0.5] = 1
-            predicted[predicted < 0.5] = 0
+            #predicted[predicted >= 0.5] = 1
+            #predicted[predicted < 0.5] = 0
 
             #print(len(y_batch))
             #print(np.shape(y_batch))
             #print(len(predicted))
             #print(np.shape(predicted))
 
-            for pred, y in zip(predicted, y_batch):
+            #for pred, y in zip(predicted, y_batch):
                 #print(int(pred.item()))
                 #print(int(y.item()))
-                if (int(pred.item()) == int(y.item())):
-                    correct_predictions += 1
+                #if (int(pred.item()) == int(y.item())):
+                    #correct_predictions += 1
 
         #print(f"correct prediction ratio: {correct_ratio}")
 
@@ -313,7 +340,7 @@ def train_model(train_loader):
         print(f'epoch: {epoch} validation_loss: {avg_loss}')
 
         correct_ratio = float(correct_predictions)/len(validation_set.dataset)
-        print(f"epoch: {epoch} correct predictions: {correct_predictions} / {len(validation_set.dataset)} = {correct_ratio}")
+        print(f"epoch: {epoch} validation set correct predictions: {correct_predictions} / {len(validation_set.dataset)} = {correct_ratio}")
            
         end = time.time()    
         print('Time consumption {} sec'.format(end - start)) 
