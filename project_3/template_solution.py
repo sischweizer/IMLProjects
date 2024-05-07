@@ -198,7 +198,7 @@ class Net(nn.Module):
 
         output: x: torch.Tensor, the output of the model
         """
-        x = x.view(-1, 3840)
+        x = x.view(-1, 3072)
         
         x = self.fc1(x)
         x = self.fc2(x)
@@ -405,8 +405,8 @@ if __name__ == '__main__':
     TEST_TRIPLETS = 'test_triplets.txt'
 
     # generate embedding for each image in the dataset
-    if(True):
-    #if(os.path.exists('dataset/embeddings.npy') == False):
+    #if(True):
+    if(os.path.exists('dataset/embeddings.npy') == False):
         generate_embeddings()
         print("finished embedingspart")
 
