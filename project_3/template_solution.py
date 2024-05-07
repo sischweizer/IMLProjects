@@ -185,15 +185,15 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3072, 700), nn.BatchNorm1d(700), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3072, 500), nn.BatchNorm1d(500), nn.ReLU())
         #self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
-        self.fc3 = nn.Sequential(nn.Linear(700, 200), nn.BatchNorm1d(200), nn.ReLU())
+        #self.fc3 = nn.Sequential(nn.Linear(700, 200), nn.BatchNorm1d(200), nn.ReLU())
         #self.fc4 = nn.Sequential(nn.Linear(800, 400), nn.BatchNorm1d(400), nn.LeakyReLU())
 
         if dropout:
-            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(200, 1), nn.ReLU())
+            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(500, 1), nn.ReLU())
         else:
-            self.fc5 = nn.Sequential(nn.Linear(200, 1), nn.ReLU())
+            self.fc5 = nn.Sequential(nn.Linear(500, 1), nn.ReLU())
         #torch.nn.init.kaiming_normal_(self.fc5.weight, mode='fan_out', nonlinearity='relu')
         
 
@@ -209,7 +209,7 @@ class Net(nn.Module):
         
         x = self.fc1(x)
         #x = self.fc2(x)
-        x = self.fc3(x)
+        #x = self.fc3(x)
         #x = self.fc4(x)
         x = self.fc5(x)
         return x
