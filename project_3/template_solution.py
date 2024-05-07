@@ -185,9 +185,9 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3072, 600), nn.BatchNorm1d(600), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3072, 1000), nn.BatchNorm1d(1000), nn.ReLU())
         #self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
-        self.fc3 = nn.Sequential(nn.Linear(600, 200), nn.BatchNorm1d(200), nn.ReLU())
+        self.fc3 = nn.Sequential(nn.Linear(1000, 200), nn.BatchNorm1d(200), nn.ReLU())
         #self.fc4 = nn.Sequential(nn.Linear(800, 400), nn.BatchNorm1d(400), nn.LeakyReLU())
 
         if dropout:
