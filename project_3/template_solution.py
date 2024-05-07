@@ -301,8 +301,8 @@ def train_model(train_loader):
         training_loss.append(avg_loss)
         print(f'epoch: {epoch} training_loss: {avg_loss}')
 
-        correct_ratio = float(correct_predictions)/len(validation_set.dataset)
-        print(f"epoch: {epoch} train set correct predictions: {correct_predictions} / {len(validation_set.dataset)} = {correct_ratio}")
+        correct_ratio = float(correct_predictions)/len(training_set.dataset)
+        print(f"epoch: {epoch} train set correct predictions: {correct_predictions} / {len(training_set.dataset)} = {correct_ratio}")
 
         correct_predictions = 0
 
