@@ -5,6 +5,7 @@ import numpy as np
 from torchvision import transforms
 from torchvision.models import resnet50, ResNet50_Weights, resnet152, ResNet152_Weights
 from torchvision.models import vit_l_16, ViT_L_16_Weights
+from torchvision.models import vit_h_14, ViT_H_14_Weights
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import os
 import torch
@@ -36,8 +37,9 @@ def generate_embeddings():
     # below. 
     # See https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models
     #weights = ResNet152_Weights.DEFAULT
-    weights = ViT_L_16_Weights.DEFAULT
-    train_transforms = transforms.Compose([transforms.ToTensor(), ViT_L_16_Weights.IMAGENET1K_V1.transforms()])
+    weights = ViT_H_14_Weights.DEFAULT
+    train_transforms = transforms.Compose([transforms.ToTensor(), weights.transforms()])
+    #train_transforms = transforms.Compose([transforms.ToTensor(), ViT_H_16_Weights.IMAGENET1K_V1.transforms()])
     train_dataset = datasets.ImageFolder(root="dataset/", transform=train_transforms)
     #train_dataset = datasets.ImageFolder(root="dataset/", transform=ViT_B_32_Weights.IMAGENET1K_V1.transforms)
     # Hint: adjust batch_size and num_workers to your PC configuration, so that you don't 
@@ -54,11 +56,13 @@ def generate_embeddings():
 
     #model = resnet50(weights=ResNet50_Weights.DEFAULT, progress=True)
     #model = resnet152(weights=weights, progress=True)
-    model = vit_l_16(weights=weights, progress=True)
+    #model = vit_l_16(weights=weights, progress=True)
+    model = vit_h_14(weights=weights, progress=True)
     model.eval()
     #model = resnet101(weights=ResNet101_Weights.DEFAULT, progress=True)
     model.to(device)
-    embedding_size = 1024 # Dummy variable, replace with the actual embedding size once you 
+    embedding_size = 1280 # Dummy variable, replace with the actual embedding size once you 
+    #embedding_size = 1024
     # pick your model
     num_images = len(train_dataset)
     embeddings = np.zeros((num_images, embedding_size))
@@ -185,7 +189,7 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3072, 900), nn.BatchNorm1d(900), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3840, 900), nn.BatchNorm1d(900), nn.ReLU())
         self.fc2 = nn.Sequential(nn.Linear(900, 400), nn.BatchNorm1d(400), nn.ReLU())
         self.fc3 = nn.Sequential(nn.Linear(400, 100), nn.BatchNorm1d(100), nn.ReLU())
         self.fc4 = nn.Sequential(nn.Linear(100, 50), nn.BatchNorm1d(50), nn.LeakyReLU())
@@ -205,7 +209,7 @@ class Net(nn.Module):
 
         output: x: torch.Tensor, the output of the model
         """
-        x = x.view(-1, 3072)
+        x = x.view(-1, 3840)
         
         x = self.fc1(x)
         x = self.fc2(x)
@@ -412,8 +416,8 @@ if __name__ == '__main__':
     TEST_TRIPLETS = 'test_triplets.txt'
 
     # generate embedding for each image in the dataset
-    #if(True):
-    if(os.path.exists('dataset/embeddings.npy') == False):
+    if(True):
+    #if(os.path.exists('dataset/embeddings.npy') == False):
         generate_embeddings()
         print("finished embedingspart")
 
