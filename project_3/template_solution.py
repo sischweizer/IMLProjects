@@ -243,7 +243,7 @@ def train_model(train_loader):
     output: model: torch.nn.Module, the trained model
     """
 
-    lr=0.0005
+    lr=0.0001
     gamma=0.9
 
     model = Net()
@@ -308,9 +308,8 @@ def train_model(train_loader):
 
         loss_sum = 0
         for X_batch, y_batch in validation_set:
-            y_pred = model.forward(X_batch.to(device))
+            y_pred = model(X_batch.to(device))
             
-
             loss = loss_fct(torch.squeeze(y_pred),y_batch.float().to(device))
             loss_sum += loss.item()
 
@@ -328,7 +327,7 @@ def train_model(train_loader):
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
 
-    exit(0)
+    #exit(0)
 
     model = Net()
     model.train()
