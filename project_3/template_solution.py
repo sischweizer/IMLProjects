@@ -178,9 +178,9 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3072, 1000), nn.BatchNorm1d(1000), nn.ReLU())
-        self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
-        self.fc3 = nn.Sequential(nn.Linear(400, 200), nn.BatchNorm1d(200), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3072, 1000), nn.ReLU())
+        self.fc2 = nn.Sequential(nn.Linear(1000, 500), nn.ReLU())
+        self.fc3 = nn.Sequential(nn.Linear(500, 200), nn.ReLU())
         #self.fc4 = nn.Sequential(nn.Linear(100, 50), nn.BatchNorm1d(50), nn.LeakyReLU())
 
         if dropout:
@@ -236,7 +236,7 @@ def train_model(train_loader):
     output: model: torch.nn.Module, the trained model
     """
 
-    lr=0.0015
+    lr=0.0005
     gamma=0.9
 
     model = Net()
