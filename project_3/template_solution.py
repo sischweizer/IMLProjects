@@ -3,7 +3,6 @@
 # First, we import necessary libraries:
 import numpy as np
 from torchvision import transforms
-from torchvision.models import resnet50, ResNet50_Weights, resnet152, ResNet152_Weights
 from torchvision.models import vit_l_16, ViT_L_16_Weights
 from torchvision.models import vit_h_14, ViT_H_14_Weights
 from torch.utils.data import DataLoader, TensorDataset, random_split
@@ -36,8 +35,7 @@ def generate_embeddings():
     # The required pre-processing depends on the pre-trained model you choose 
     # below. 
     # See https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models
-    #weights = ResNet152_Weights.DEFAULT
-    weights = ViT_H_14_Weights.DEFAULT
+    weights = ViT_L_16_Weights.DEFAULT
     train_transforms = transforms.Compose([transforms.ToTensor(), weights.transforms()])
     #train_transforms = transforms.Compose([transforms.ToTensor(), ViT_H_16_Weights.IMAGENET1K_V1.transforms()])
     train_dataset = datasets.ImageFolder(root="dataset/", transform=train_transforms)
@@ -52,17 +50,10 @@ def generate_embeddings():
     
     # TODO: define a model for extraction of the embeddings (Hint: load a pretrained model,
     #  more info here: https://pytorch.org/vision/stable/models.html)
-    #model = nn.Module()
-
-    #model = resnet50(weights=ResNet50_Weights.DEFAULT, progress=True)
-    #model = resnet152(weights=weights, progress=True)
-    #model = vit_l_16(weights=weights, progress=True)
-    model = vit_h_14(weights=weights, progress=True)
+    model = vit_l_16(weights=weights, progress=True)
     model.eval()
-    #model = resnet101(weights=ResNet101_Weights.DEFAULT, progress=True)
     model.to(device)
-    embedding_size = 1280 # Dummy variable, replace with the actual embedding size once you 
-    #embedding_size = 1024
+    embedding_size = 1024
     # pick your model
     num_images = len(train_dataset)
     embeddings = np.zeros((num_images, embedding_size))
@@ -71,8 +62,6 @@ def generate_embeddings():
     
     #train_nodes, eval_nodes = get_graph_node_names(model)
     #print(train_nodes)
-
-    #model_2 = torch.nn.Sequential(*(list(model.children())[:-1])).to(device)
     
     return_nodes = {
         #'encoder.ln': 'encoder.ln',
@@ -189,15 +178,15 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(3840, 900), nn.BatchNorm1d(900), nn.ReLU())
-        self.fc2 = nn.Sequential(nn.Linear(900, 400), nn.BatchNorm1d(400), nn.ReLU())
-        self.fc3 = nn.Sequential(nn.Linear(400, 100), nn.BatchNorm1d(100), nn.ReLU())
-        self.fc4 = nn.Sequential(nn.Linear(100, 50), nn.BatchNorm1d(50), nn.LeakyReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3072, 1000), nn.BatchNorm1d(1000), nn.ReLU())
+        self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
+        self.fc3 = nn.Sequential(nn.Linear(400, 200), nn.BatchNorm1d(200), nn.ReLU())
+        #self.fc4 = nn.Sequential(nn.Linear(100, 50), nn.BatchNorm1d(50), nn.LeakyReLU())
 
         if dropout:
-            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(50, 1), nn.ReLU())
+            self.fc5 = nn.Sequential(nn.Dropout(),nn.Linear(200, 1), nn.ReLU())
         else:
-            self.fc5 = nn.Sequential(nn.Linear(50, 1), nn.ReLU())
+            self.fc5 = nn.Sequential(nn.Linear(200, 1), nn.ReLU())
         #torch.nn.init.kaiming_normal_(self.fc5.weight, mode='fan_out', nonlinearity='relu')
         
 
@@ -214,7 +203,7 @@ class Net(nn.Module):
         x = self.fc1(x)
         x = self.fc2(x)
         x = self.fc3(x)
-        x = self.fc4(x)
+        #x = self.fc4(x)
         x = self.fc5(x)
         return x
 
