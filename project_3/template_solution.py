@@ -5,6 +5,7 @@ import numpy as np
 from torchvision import transforms
 from torchvision.models import resnet50, ResNet50_Weights, resnet152, ResNet152_Weights
 from torchvision.models import vit_b_16, ViT_B_16_Weights
+from torchvision.models import vit_b_16, ViT_B_16_Weights
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import os
 import torch
@@ -38,7 +39,7 @@ def generate_embeddings():
     #weights = ResNet152_Weights.DEFAULT
     weights = ViT_B_16_Weights.DEFAULT
     train_transforms = transforms.Compose([transforms.ToTensor(), ViT_B_16_Weights.IMAGENET1K_V1.transforms()])
-    train_dataset = datasets.ImageFolder(root="dataset/", transform=train_transforms)
+    train_dataset = datasets.ImageFolder(root="project_3/dataset/", transform=train_transforms)
     #train_dataset = datasets.ImageFolder(root="dataset/", transform=ViT_B_32_Weights.IMAGENET1K_V1.transforms)
     # Hint: adjust batch_size and num_workers to your PC configuration, so that you don't 
     # run out of memory (VRAM if on GPU, RAM if on CPU)
@@ -83,7 +84,7 @@ def generate_embeddings():
     with torch.no_grad():
         for i, (img, _) in enumerate(train_loader):
             print(i)
-            print(np.shape(img))
+            #print(np.shape(img))
             
             data = (img).to(device)
             #print(np.shape(data))
@@ -97,10 +98,8 @@ def generate_embeddings():
         
     end = time.time()    
     print('Time consumption {} sec'.format(end - start))    
-     
-    exit(0)
     
-    np.save('dataset/embeddings.npy', embeddings)
+    np.save('project_3/dataset/embeddings.npy', embeddings)
     
 
 def get_data(file, train=True):
@@ -211,6 +210,7 @@ class Net(nn.Module):
         x = self.fc3(x)
         #x = self.fc4(x)
         x = self.fc5(x)
+        x = F.relu(x)
         return x
 
 def train_model(train_loader):
@@ -235,7 +235,7 @@ def train_model(train_loader):
 
     #validation set split
     g = torch.Generator(device="cpu")
-    data_train, data_test = random_split(train_loader.dataset, [0.8, 0.2], generator= g)
+    data_train, data_test = random_split(train_loader.dataset, [0.7, 0.3], generator= g)
 
     training_set = DataLoader(list(data_train), shuffle = False, batch_size=batch_size)
     validation_set = DataLoader(list(data_test), shuffle = False, batch_size=batch_size)
@@ -245,14 +245,18 @@ def train_model(train_loader):
     training_loss = []
     validation_loss = []
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+    lr = 0.001
+    gamma = 0.9
+    momentum = 0.5
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     #scheduler = StepLR(optimizer,step_size=100, gamma=0.9)
-    #scheduler = ExponentialLR(optimizer, gamma=0.9)
+    scheduler = ExponentialLR(optimizer, gamma=gamma)
     #optimizer = torch.optim.SGD(model.parameters(), lr=0.006, momentum=0.9)
     start = time.time()
 
     total_size = 3000
-    
+    counter = 0
     #training 
     for epoch in range(n_epochs): 
         loss_sum = 0
@@ -267,7 +271,7 @@ def train_model(train_loader):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            #scheduler.step()
+        scheduler.step()
 
         training_loss.append(loss_sum/number_of_batches)
         print(f'epoch: {epoch:2}  training_loss: {training_loss[-1]:10.8f}')
@@ -280,48 +284,29 @@ def train_model(train_loader):
             number_of_batches += 1
 
         validation_loss.append(loss_sum/number_of_batches)
-
         print(f'epoch: {epoch:2}  validation_loss: {validation_loss[-1]:10.8f}')
-            ##############
 
-        #x_train = torch.empty(len(training_set),tot_size)
-        #y_train = torch.empty(len(training_set),1)
-        #for i, [X, y] in enumerate(training_set):
-        #    x_train[i] = X
-        #    y_train[i] = y
+        """if(len(validation_loss) >= 2):
+            if((validation_loss[-1] - validation_loss[-2]) > 0):
+                counter += 1
+                if(counter == 2):
+                    n_epochs = epoch
+                    break
+        """
 
-        #y_pred = model.forward(x_train.to(device))
-
-        #loss = loss_fct(y_pred,y_train.float().to(device))
-        #training_loss.append(loss)
-
-        #optimizer.zero_grad()
-        #loss.backward()
-        #optimizer.step()
-        #scheduler.step()
-        #print(f'epoch: {epoch:2}  training_loss: {loss.item():10.8f}')
-        
-        #x_val = torch.empty(len(validation_set),tot_size)
-        #y_val = torch.empty(len(validation_set),1)
-        #for i, [X, y] in enumerate(validation_set):
-        #    x_val[i] = X
-        #    y_val[i] = y
-        #y_pred = model.forward(x_val.to(device))     
-        #loss = loss_fct(y_pred,y_val.float().to(device)) 
-        #validation_loss.append(loss)
-        #print(f'epoch: {epoch:2}  validation_loss: {loss.item():10.8f}')
-        
+           
         end = time.time()    
         print('Time consumption {} sec'.format(end - start)) 
         start = time.time()
 
-          
+    model = Net()
+    model.train()
+    model.to(device)
     
-    #print("training loss:")
-    #print(training_loss)
-    #print("validation loss:")
-    #print(validation_loss)
-    
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    #scheduler = StepLR(optimizer,step_size=100, gamma=0.9)
+    scheduler = ExponentialLR(optimizer, gamma=gamma)
+
     loss_tot = []
     for epoch in range(n_epochs):  
         number_of_batches = 0      
@@ -340,22 +325,6 @@ def train_model(train_loader):
         loss_tot.append(loss_sum/number_of_batches)
         print(f'epoch: {epoch:2}  total_loss: {loss_tot[-1]:10.8f}')
 
-        """x_tot = torch.empty(len(train_loader.dataset),tot_size)
-        y_tot = torch.empty(len(train_loader.dataset),1)
-        for i, [X, y] in enumerate(train_loader.dataset):
-            x_tot[i] = X
-            y_tot[i] = y
-        y_pred = model.forward(x_tot.to(device))
-             
-        loss = loss_fct(y_pred,y_tot.float().to(device)) 
-        loss_tot.append(loss)
-        print(f'epoch: {epoch:2}  total_loss: {loss.item():10.8f}')
-        
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        """
-    #print(loss_tot)
     return model
 
 def test_model(model, loader):
