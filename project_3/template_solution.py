@@ -4,6 +4,7 @@
 import numpy as np
 from torchvision import transforms
 from torchvision.models import resnet50, ResNet50_Weights, resnet152, ResNet152_Weights
+from torchvision.models import vit_b_16, ViT_B_16_Weights
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import os
 import torch
@@ -34,27 +35,30 @@ def generate_embeddings():
     # The required pre-processing depends on the pre-trained model you choose 
     # below. 
     # See https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models
-    weights = ResNet152_Weights.DEFAULT
-    train_transforms = transforms.Compose([transforms.ToTensor(), weights.transforms()])
-    train_dataset = datasets.ImageFolder(root="project_3/dataset/", transform=train_transforms)
+    #weights = ResNet152_Weights.DEFAULT
+    weights = ViT_B_16_Weights.DEFAULT
+    train_transforms = transforms.Compose([transforms.ToTensor(), ViT_B_16_Weights.IMAGENET1K_V1.transforms()])
+    train_dataset = datasets.ImageFolder(root="dataset/", transform=train_transforms)
+    #train_dataset = datasets.ImageFolder(root="dataset/", transform=ViT_B_32_Weights.IMAGENET1K_V1.transforms)
     # Hint: adjust batch_size and num_workers to your PC configuration, so that you don't 
     # run out of memory (VRAM if on GPU, RAM if on CPU)
     train_loader = DataLoader(dataset=train_dataset,
                               batch_size=64,
                               shuffle=False,
                               pin_memory=True, 
-                              num_workers=16)
+                              num_workers=1)
     
     # TODO: define a model for extraction of the embeddings (Hint: load a pretrained model,
     #  more info here: https://pytorch.org/vision/stable/models.html)
     #model = nn.Module()
 
     #model = resnet50(weights=ResNet50_Weights.DEFAULT, progress=True)
-    model = resnet152(weights=weights, progress=True)
+    #model = resnet152(weights=weights, progress=True)
+    model = vit_b_16(weights=weights, progress=True)
     
     #model = resnet101(weights=ResNet101_Weights.DEFAULT, progress=True)
     model.to(device)
-    embedding_size = 2048 # Dummy variable, replace with the actual embedding size once you 
+    embedding_size = 1000 # Dummy variable, replace with the actual embedding size once you 
     # pick your model
     num_images = len(train_dataset)
     embeddings = np.zeros((num_images, embedding_size))
@@ -74,21 +78,29 @@ def generate_embeddings():
 
     #for i in range(0,len(train_dataset.imgs)):
     #    model_2(train_dataset.imgs[i])
+    print(type(train_loader))
     start = time.time()
     with torch.no_grad():
-        for i, img in enumerate(train_loader.dataset):
+        for i, (img, _) in enumerate(train_loader):
             print(i)
+            print(np.shape(img))
             
-            
-            data = (img[0]).to(device)
-            result = model_2(data)
-            embeddings[i] = torch.flatten(result.cpu())
+            data = (img).to(device)
+            #print(np.shape(data))
+            result = model(data)
+            #print(result)
+            #print(len(result))
+            #print(np.shape(result))
+            embeddings[i*batch_size:i*batch_size+len(result)] = result.cpu()
+            #print(embeddings)
+            #break
+        
     end = time.time()    
     print('Time consumption {} sec'.format(end - start))    
      
+    exit(0)
     
-    
-    np.save('project_3/dataset/embeddings.npy', embeddings)
+    np.save('dataset/embeddings.npy', embeddings)
     
 
 def get_data(file, train=True):
@@ -107,10 +119,10 @@ def get_data(file, train=True):
             triplets.append(line)
 
     # generate training data from triplets
-    train_dataset = datasets.ImageFolder(root="project_3/dataset/",
+    train_dataset = datasets.ImageFolder(root="dataset/",
                                          transform=None)
     filenames = [s[0].split('/')[-1].split('\\')[-1].replace('.jpg', '') for s in train_dataset.samples]
-    embeddings = np.load('project_3/dataset/embeddings.npy')
+    embeddings = np.load('dataset/embeddings.npy')
     # TODO: Normalize the embeddings
     
     
@@ -172,7 +184,7 @@ class Net(nn.Module):
         """
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(6144, 1000), nn.BatchNorm1d(1000), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(3000, 1000), nn.BatchNorm1d(1000), nn.ReLU())
         self.fc2 = nn.Sequential(nn.Linear(1000, 400), nn.BatchNorm1d(400), nn.ReLU())
         self.fc3 = nn.Sequential(nn.Linear(400, 200), nn.BatchNorm1d(200), nn.ReLU())
         #self.fc4 = nn.Sequential(nn.Linear(800, 400), nn.BatchNorm1d(400), nn.LeakyReLU())
@@ -192,7 +204,7 @@ class Net(nn.Module):
 
         output: x: torch.Tensor, the output of the model
         """
-        x = x.view(-1, 6144)
+        x = x.view(-1, 3000)
         
         x = self.fc1(x)
         x = self.fc2(x)
@@ -239,7 +251,7 @@ def train_model(train_loader):
     #optimizer = torch.optim.SGD(model.parameters(), lr=0.006, momentum=0.9)
     start = time.time()
 
-    tot_size = 6144
+    total_size = 3000
     
     #training 
     for epoch in range(n_epochs): 
@@ -373,18 +385,18 @@ def test_model(model, loader):
             
         predictions = np.vstack(predictions)
  
-    np.savetxt("project_3/results.txt", predictions, fmt='%i')
+    np.savetxt("results.txt", predictions, fmt='%i')
 
 
 # Main function. You don't have to change this
 if __name__ == '__main__':
-    TRAIN_TRIPLETS = 'project_3/train_triplets.txt'
-    TEST_TRIPLETS = 'project_3/test_triplets.txt'
+    TRAIN_TRIPLETS = 'train_triplets.txt'
+    TEST_TRIPLETS = 'test_triplets.txt'
 
     # generate embedding for each image in the dataset
-    if(os.path.exists('project_3/dataset/embeddings.npy') == False):
-        generate_embeddings()
-        print("finished embedingspart")
+    #if(os.path.exists('dataset/embeddings.npy') == False):
+    generate_embeddings()
+        #print("finished embedingspart")
 
     # load the training data
     X, y = get_data(TRAIN_TRIPLETS)
