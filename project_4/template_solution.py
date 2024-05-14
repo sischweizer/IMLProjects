@@ -12,21 +12,24 @@ from transformers import DistilBertModel
 from transformers import DistilBertTokenizer
 from torch.optim.lr_scheduler import ExponentialLR
 from multiprocessing import freeze_support
+from datasets import Dataset
+import time
+import os
 # Depending on your approach, you might need to adapt the structure of this template or parts not marked by TODOs.
 # It is not necessary to completely follow this template. Feel free to add more code and delete any parts that 
 # are not required 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-BATCH_SIZE = 16  # TODO: Set the batch size according to both training performance and available memory
+BATCH_SIZE = 64  # TODO: Set the batch size according to both training performance and available memory
 NUM_EPOCHS = 10  # TODO: Set the number of epochs
 LR = 0.01
 Gamma = 0.9
 
-embeddings = True
+EMBEDDINGS = True
 
 train_val = pd.read_csv("project_4/train.csv")
 test_val = pd.read_csv("project_4/test_no_score.csv")
-
+"""
 def generate_embeddings(data, train):
 
     tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
@@ -62,24 +65,101 @@ def generate_embeddings(data, train):
     
     else: 
         return TensorDataset(result)
+"""
+def generate_embeddings(data, train):
+
+    tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+    model = DistilBertModel.from_pretrained('distilbert-base-uncased')
+    model.to(DEVICE)
+
+    #print(data.items)
+    #print(data.columns)
+    
+    embeddings = []
+    scores = []
+
+    dataset = Dataset.from_pandas(data)
+    #print(dataset)
+    #print(type(dataset))
+
+    dataloader = DataLoader(dataset=dataset, batch_size=BATCH_SIZE, shuffle=False)
+    #print(type(dataloader))
+
+    start = time.time()
+    for i, batch in enumerate(dataloader):
+        #print(i)
+        #print(batch)
+        #print(type(batch))
+        
+        encoded_input = tokenizer(batch["sentence"], return_tensors='pt', padding=True).to(DEVICE)
+
+        with torch.no_grad():
+            output = model(**encoded_input)
+
+        output_tensor = output.last_hidden_state
+        #print(np.shape(output_tensor))
+        last_tensor = output_tensor[:, -1, :].cpu()
+        #print(np.shape(last_tensor))
+
+        #last_tensor = torch.squeeze(output_tensor)[-1].unsqueeze(0)
+
+        embeddings.append(last_tensor)
+        #print(np.shape(last_tensor))
+
+        if(train == True):
+            scores.append(batch["score"])
+
+        if(i % 5 == 0):
+            print(i)
+            
+    end = time.time()    
+    print('Time consumption {} sec'.format(end - start)) 
+
+    embeddings = torch.cat(embeddings, dim=0)
+    print(np.shape(embeddings))
+    
+    
+
+    if(train == True):
+        
+        scores = torch.cat(scores, dim=0)
+        np.save('project_4/dataset/scores.npy', scores)
+        #print(np.shape(scores))
+        #scores = torch.tensor(scores)  
+        np.save('project_4/dataset/embeddings_train.npy', embeddings)
+        dataset = TensorDataset(embeddings, scores)
+
+    else:
+        np.save('project_4/dataset/embeddings_test.npy', embeddings)
+        dataset = TensorDataset(embeddings)
+    
+
+    return dataset
 
 
-def get_embeddings():
-    return "hello"
+def get_embeddings(train):
+    if(train):
+        scores = torch.from_numpy(np.load('project_4/dataset/scores.npy'))
+        dataset = torch.from_numpy(np.load('project_4/dataset/embeddings_train.npy'))
+        return TensorDataset(dataset, scores)
+
+    else:
+        dataset = torch.from_numpy(np.load('project_4/dataset/embeddings_test.npy'))
+        return TensorDataset(dataset)
 
 # TODO: Fill out the ReviewDataset
 class ReviewDataset(Dataset):
     def __init__(self, data_frame, train = False):
-        
+        self.data = 0
         #generate embeddings
-        if(embeddings == True):
-            data = generate_embeddings(data_frame, train)
+        if(EMBEDDINGS):
+            self.data = generate_embeddings(data_frame, train)
+            
         else: 
-            data = get_embeddings()
+            self.data = get_embeddings(train)
 
-        self.data = data
-
-        
+    def data(self):
+        return self._data
 
     def __len__(self):
         print(len(self.data))
@@ -127,41 +207,42 @@ class MyModule(nn.Module):
         x = self.fc3(x)
         return x
 
-def main():
-    model = MyModule().to(DEVICE)
+#def main():
+exit(0)
+model = MyModule().to(DEVICE)
 
-    # TODO: Setup loss function, optimiser, and scheduler
-    criterion = torch.nn.MSELoss()
-    optimiser = torch.optim.Adam(model.parameters(), lr=LR)
-    scheduler = ExponentialLR(optimiser, gamma=Gamma)
+# TODO: Setup loss function, optimiser, and scheduler
+criterion = torch.nn.MSELoss()
+optimiser = torch.optim.Adam(model.parameters(), lr=LR)
+scheduler = ExponentialLR(optimiser, gamma=Gamma)
 
+model.train()
+
+
+for epoch in range(NUM_EPOCHS):
     model.train()
 
-
-    for epoch in range(NUM_EPOCHS):
-        model.train()
-
-        for  batch in tqdm(train_loader, total=len(train_loader)):
-            batch = batch.to(DEVICE)
-            print("5")
-            
-            
-            # TODO: Set up training loop
+    for  batch in tqdm(train_loader, total=len(train_loader)):
+        batch = batch.to(DEVICE)
+        print("5")
+        
+        
+        # TODO: Set up training loop
 
 
-    model.eval()
-    with torch.no_grad():
-        results = []
-        for batch in tqdm(test_loader, total=len(test_loader)):
-            batch = batch.to(DEVICE)
+model.eval()
+with torch.no_grad():
+    results = []
+    for batch in tqdm(test_loader, total=len(test_loader)):
+        batch = batch.to(DEVICE)
 
-            # TODO: Set up evaluation loop
+        # TODO: Set up evaluation loop
 
-        with open("result.txt", "w") as f:
-            for val in np.concatenate(results):
-                f.write(f"{val}\n")
+    with open("result.txt", "w") as f:
+        for val in np.concatenate(results):
+            f.write(f"{val}\n")
 
-if __name__ == '__main__':
-    freeze_support()
-    main()
+#if __name__ == '__main__':
+#    freeze_support()
+#    main()
 
