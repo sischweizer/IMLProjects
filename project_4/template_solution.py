@@ -17,7 +17,7 @@ from multiprocessing import freeze_support
 # are not required 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-BATCH_SIZE = 64  # TODO: Set the batch size according to both training performance and available memory
+BATCH_SIZE = 16  # TODO: Set the batch size according to both training performance and available memory
 NUM_EPOCHS = 10  # TODO: Set the number of epochs
 LR = 0.01
 Gamma = 0.9
@@ -47,9 +47,11 @@ def generate_embeddings(data, train):
         if(index == 0):
             result = last_tensor
             
-
         else: 
             result = torch.cat((result, last_tensor),dim=0)
+        
+        if(index % 10 == 0):
+            print(index)
 
 
     if(train == True):
