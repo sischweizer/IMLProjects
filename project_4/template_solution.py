@@ -29,67 +29,21 @@ EMBEDDINGS = False
 
 train_val = pd.read_csv("project_4/train.csv")
 test_val = pd.read_csv("project_4/test_no_score.csv")
-"""
+
 def generate_embeddings(data, train):
 
     tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
     model = DistilBertModel.from_pretrained('distilbert-base-uncased')
     model.to(DEVICE)
-
-    
-    scores  = []
-    for index, row in data.iterrows():
-        encoded_input = tokenizer(row["sentence"], return_tensors='pt').to(DEVICE)
-        output = model(**encoded_input)
-        output_tensor = output.last_hidden_state
-        last_tensor = torch.squeeze(output_tensor)[-1].unsqueeze(0)
-
-        if(train == True):
-            scores.append(row["score"])
-
-        if(index == 0):
-            result = last_tensor
-            
-        else: 
-            result = torch.cat((result, last_tensor),dim=0)
-        
-        if(index % 10 == 0):
-            print(index)
-
-
-    if(train == True):
-        scores = torch.tensor(scores)
-    
-        dataset = TensorDataset(result, scores)
-        return dataset
-    
-    else: 
-        return TensorDataset(result)
-"""
-def generate_embeddings(data, train):
-
-    tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-    model = DistilBertModel.from_pretrained('distilbert-base-uncased')
-    model.to(DEVICE)
-
-    #print(data.items)
-    #print(data.columns)
-    
     embeddings = []
     scores = []
 
     dataset = Dataset.from_pandas(data)
-    #print(dataset)
-    #print(type(dataset))
-
     dataloader = DataLoader(dataset=dataset, batch_size=BATCH_SIZE, shuffle=False)
-    #print(type(dataloader))
+
 
     start = time.time()
     for i, batch in enumerate(dataloader):
-        #print(i)
-        #print(batch)
-        #print(type(batch))
         
         encoded_input = tokenizer(batch["sentence"], return_tensors='pt', padding=True).to(DEVICE)
 
@@ -97,14 +51,9 @@ def generate_embeddings(data, train):
             output = model(**encoded_input)
 
         output_tensor = output.last_hidden_state
-        #print(np.shape(output_tensor))
         last_tensor = output_tensor[:, -1, :].cpu()
-        #print(np.shape(last_tensor))
-
-        #last_tensor = torch.squeeze(output_tensor)[-1].unsqueeze(0)
-
         embeddings.append(last_tensor)
-        #print(np.shape(last_tensor))
+
 
         if(train == True):
             scores.append(batch["score"])
@@ -124,8 +73,6 @@ def generate_embeddings(data, train):
         
         scores = torch.cat(scores, dim=0)
         np.save('project_4/dataset/scores.npy', scores)
-        #print(np.shape(scores))
-        #scores = torch.tensor(scores)  
         np.save('project_4/dataset/embeddings_train.npy', embeddings)
         dataset = TensorDataset(embeddings, scores)
 
@@ -147,37 +94,7 @@ def get_embeddings(train):
         dataset = torch.from_numpy(np.load('project_4/dataset/embeddings_test.npy'))
         return TensorDataset(dataset)
 
-"""
-# TODO: Fill out the ReviewDataset
-class ReviewDataset(Dataset):
-    def __init__(self, data_frame, train=False):
-        if EMBEDDINGS:
-            self.dataset = generate_embeddings(data_frame, train)
-        else:
-            self.dataset = get_embeddings(train)
-        self.train = train
 
-    def __getitem__(self, index):
-        
-        start = (index[0] -1) * BATCH_SIZE
-        end = start + BATCH_SIZE
-
-        if self.train:
-            
-            input_data = self.dataset[start:end][0]
-
-            label = self.dataset[start:end][1]
-            #print(label)
-            #print(input_data)
-            return input_data, label
-        else:
-            input_data = self.dataset[index][0]
-            return input_data, torch.tensor(-1)  # Dummy label for test set
-
-    def __len__(self):
-        return len(self.dataset)
-
-"""
 
 #if we have to create new embeddings
 if EMBEDDINGS:
@@ -188,21 +105,12 @@ else:
     test_dataset = get_embeddings(train = False)
 
 
-
-#train_dataset = ReviewDataset(train_val, train = True)
-
-#test_dataset = ReviewDataset(test_val)
-
-
 train_loader = DataLoader(dataset=train_dataset,
                         batch_size=BATCH_SIZE,
                         shuffle=True, num_workers=16, pin_memory=True)
 test_loader = DataLoader(dataset=test_dataset,
                         batch_size=BATCH_SIZE,
                         shuffle=False, num_workers=16, pin_memory=True)
-
-#print(train_dataset.__getitem__(16))
-
 
 # Additional code if needed
 
@@ -229,7 +137,10 @@ class MyModule(nn.Module):
     
 def main():
     
-    model = MyModule().to(DEVICE)
+    model = MyModule()
+    model.to(DEVICE)
+    model.train()
+    print(DEVICE)
 
     # TODO: Setup loss function, optimiser, and scheduler
     criterion = torch.nn.MSELoss()
@@ -237,30 +148,19 @@ def main():
     scheduler = ExponentialLR(optimizer, gamma=Gamma)
 
 
-
-    model.train()
-    
-    """
-    for epoch in range(NUM_EPOCHS):
-        model.train()
-        
-        for batch in tqdm(train_loader, total=len(train_loader)):
-            batch = batch.to(DEVICE)
-            print("5")
-            
-            
-            # TODO: Set up training loop
-        """
     training_loss = []
     
     for epoch in range(NUM_EPOCHS): 
         loss_sum = 0
         number_of_batches = 0
         for X_batch, y_batch in tqdm(train_loader, total=len(train_loader)):
-
+            X_batch, y_batch = X_batch.to(DEVICE), y_batch.to(DEVICE)
             
-            y_pred = model.forward(X_batch.to(DEVICE))
-            loss = criterion(torch.squeeze(y_pred),y_batch.float().to(DEVICE))
+            #print("Model Device:", next(model.parameters()).device)
+            #print("Input Data Device:", X_batch.device)
+
+            y_pred = model.forward(X_batch)
+            loss = criterion(torch.squeeze(y_pred),y_batch.float())
             loss_sum += loss.item()
             number_of_batches += 1
             optimizer.zero_grad()
