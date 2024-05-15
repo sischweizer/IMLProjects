@@ -25,7 +25,7 @@ NUM_EPOCHS = 10  # TODO: Set the number of epochs
 LR = 0.01
 Gamma = 0.9
 
-EMBEDDINGS = True
+EMBEDDINGS = False
 
 train_val = pd.read_csv("project_4/train.csv")
 test_val = pd.read_csv("project_4/test_no_score.csv")
@@ -147,34 +147,51 @@ def get_embeddings(train):
         dataset = torch.from_numpy(np.load('project_4/dataset/embeddings_test.npy'))
         return TensorDataset(dataset)
 
+"""
 # TODO: Fill out the ReviewDataset
 class ReviewDataset(Dataset):
-    def __init__(self, data_frame, train = False):
-        self.data = 0
-        #generate embeddings
-        if(EMBEDDINGS):
-            self.data = generate_embeddings(data_frame, train)
-            
-        else: 
-            self.data = get_embeddings(train)
-
-    def data(self):
-        return self._data
-
-    def __len__(self):
-        print(len(self.data))
-        return len(self.data)
-
+    def __init__(self, data_frame, train=False):
+        if EMBEDDINGS:
+            self.dataset = generate_embeddings(data_frame, train)
+        else:
+            self.dataset = get_embeddings(train)
+        self.train = train
 
     def __getitem__(self, index):
-        input_data, target = self.data[index]
-        return input_data, target
         
+        start = (index[0] -1) * BATCH_SIZE
+        end = start + BATCH_SIZE
+
+        if self.train:
+            
+            input_data = self.dataset[start:end][0]
+
+            label = self.dataset[start:end][1]
+            #print(label)
+            #print(input_data)
+            return input_data, label
+        else:
+            input_data = self.dataset[index][0]
+            return input_data, torch.tensor(-1)  # Dummy label for test set
+
+    def __len__(self):
+        return len(self.dataset)
+
+"""
+
+#if we have to create new embeddings
+if EMBEDDINGS:
+    train_dataset = generate_embeddings(train_val, train = True)
+    test_dataset = generate_embeddings(train_val, train = False)
+else:
+    train_dataset = get_embeddings(train = True)
+    test_dataset = get_embeddings(train = False)
 
 
-train_dataset = ReviewDataset(train_val, train = True)
 
-test_dataset = ReviewDataset(test_val)
+#train_dataset = ReviewDataset(train_val, train = True)
+
+#test_dataset = ReviewDataset(test_val)
 
 
 train_loader = DataLoader(dataset=train_dataset,
@@ -183,6 +200,9 @@ train_loader = DataLoader(dataset=train_dataset,
 test_loader = DataLoader(dataset=test_dataset,
                         batch_size=BATCH_SIZE,
                         shuffle=False, num_workers=16, pin_memory=True)
+
+#print(train_dataset.__getitem__(16))
+
 
 # Additional code if needed
 
@@ -206,43 +226,66 @@ class MyModule(nn.Module):
         x = self.fc2(x)
         x = self.fc3(x)
         return x
+    
+def main():
+    
+    model = MyModule().to(DEVICE)
 
-#def main():
-exit(0)
-model = MyModule().to(DEVICE)
-
-# TODO: Setup loss function, optimiser, and scheduler
-criterion = torch.nn.MSELoss()
-optimiser = torch.optim.Adam(model.parameters(), lr=LR)
-scheduler = ExponentialLR(optimiser, gamma=Gamma)
-
-model.train()
+    # TODO: Setup loss function, optimiser, and scheduler
+    criterion = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    scheduler = ExponentialLR(optimizer, gamma=Gamma)
 
 
-for epoch in range(NUM_EPOCHS):
+
     model.train()
-
-    for  batch in tqdm(train_loader, total=len(train_loader)):
-        batch = batch.to(DEVICE)
-        print("5")
+    
+    """
+    for epoch in range(NUM_EPOCHS):
+        model.train()
         
+        for batch in tqdm(train_loader, total=len(train_loader)):
+            batch = batch.to(DEVICE)
+            print("5")
+            
+            
+            # TODO: Set up training loop
+        """
+    training_loss = []
+    
+    for epoch in range(NUM_EPOCHS): 
+        loss_sum = 0
+        number_of_batches = 0
+        for X_batch, y_batch in tqdm(train_loader, total=len(train_loader)):
+
+            
+            y_pred = model.forward(X_batch.to(DEVICE))
+            loss = criterion(torch.squeeze(y_pred),y_batch.float().to(DEVICE))
+            loss_sum += loss.item()
+            number_of_batches += 1
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
         
-        # TODO: Set up training loop
+        scheduler.step()
+        training_loss.append(loss_sum/number_of_batches)
+        print(f'epoch: {epoch:2}  training_loss: {training_loss[-1]:10.8f}')
 
+    
+    model.eval()
+    with torch.no_grad():
+        results = []
+        for [batch] in tqdm(test_loader, total=len(test_loader)):
 
-model.eval()
-with torch.no_grad():
-    results = []
-    for batch in tqdm(test_loader, total=len(test_loader)):
-        batch = batch.to(DEVICE)
+            # TODO: Set up evaluation loop
+            predicted = model(batch.to(DEVICE))
+            results.append(predicted.cpu().numpy()) 
 
-        # TODO: Set up evaluation loop
+        with open("project_4/result.txt", "w") as f:
+            for val in np.concatenate(results):
+                f.write(f"{val[0]}\n")
 
-    with open("result.txt", "w") as f:
-        for val in np.concatenate(results):
-            f.write(f"{val}\n")
-
-#if __name__ == '__main__':
-#    freeze_support()
-#    main()
+if __name__ == '__main__':
+    freeze_support()
+    main()
 
