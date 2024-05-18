@@ -10,6 +10,8 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from transformers import DistilBertModel
 from transformers import DistilBertTokenizer
+from transformers import AutoTokenizer, AlbertModel, GPT2Model
+import torch.nn.functional as F
 from torch.optim.lr_scheduler import ExponentialLR
 from multiprocessing import freeze_support
 from datasets import Dataset
@@ -24,16 +26,31 @@ BATCH_SIZE = 64  # TODO: Set the batch size according to both training performan
 NUM_EPOCHS = 10  # TODO: Set the number of epochs
 LR = 0.01
 Gamma = 0.9
+TRUNCATION = False
+PADDING = True
+PREPROCESSING = True
 
 EMBEDDINGS = False
 
 train_val = pd.read_csv("project_4/train.csv")
 test_val = pd.read_csv("project_4/test_no_score.csv")
 
+
 def generate_embeddings(data, train):
 
-    tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-    model = DistilBertModel.from_pretrained('distilbert-base-uncased')
+    #Distil bert
+    #tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+    #model = DistilBertModel.from_pretrained('distilbert-base-uncased')
+
+    #Albert
+    #tokenizer = AutoTokenizer.from_pretrained("albert/albert-base-v2")
+    #model = AlbertModel.from_pretrained("albert/albert-base-v2")
+
+    #gpt-2
+    tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2")
+    model = GPT2Model.from_pretrained("openai-community/gpt2")
+    tokenizer.pad_token = tokenizer.eos_token
+
     model.to(DEVICE)
     embeddings = []
     scores = []
@@ -45,13 +62,19 @@ def generate_embeddings(data, train):
     start = time.time()
     for i, batch in enumerate(dataloader):
         
-        encoded_input = tokenizer(batch["sentence"], return_tensors='pt', padding=True).to(DEVICE)
+        encoded_input = tokenizer(batch["sentence"], return_tensors='pt', padding=PADDING, truncation=TRUNCATION).to(DEVICE)
 
         with torch.no_grad():
             output = model(**encoded_input)
 
         output_tensor = output.last_hidden_state
         last_tensor = output_tensor[:, -1, :].cpu()
+
+        if(PREPROCESSING):
+            std = torch.std(last_tensor, dim=0)
+            mean = torch.mean(last_tensor, dim=0) 
+            last_tensor = (last_tensor - mean)/std
+
         embeddings.append(last_tensor)
 
 
@@ -64,24 +87,27 @@ def generate_embeddings(data, train):
     end = time.time()    
     print('Time consumption {} sec'.format(end - start)) 
 
+
+
     embeddings = torch.cat(embeddings, dim=0)
     print(np.shape(embeddings))
     
-    
+    """
+    if(PREPROCESSING):
+        std = torch.std(embeddings, dim=0)
+        mean = torch.mean(embeddings, dim=0) 
+        embeddings = (embeddings - mean)/std
+    """
 
     if(train == True):
         
         scores = torch.cat(scores, dim=0)
         np.save('project_4/dataset/scores.npy', scores)
         np.save('project_4/dataset/embeddings_train.npy', embeddings)
-        dataset = TensorDataset(embeddings, scores)
 
     else:
         np.save('project_4/dataset/embeddings_test.npy', embeddings)
-        dataset = TensorDataset(embeddings)
-    
 
-    return dataset
 
 
 def get_embeddings(train):
@@ -98,8 +124,12 @@ def get_embeddings(train):
 
 #if we have to create new embeddings
 if EMBEDDINGS:
-    train_dataset = generate_embeddings(train_val, train = True)
-    test_dataset = generate_embeddings(train_val, train = False)
+    generate_embeddings(train_val, train = True)
+    generate_embeddings(test_val, train = False)
+    exit(0)
+    train_dataset = get_embeddings(train = True)
+    test_dataset = get_embeddings(train = False)
+    
 else:
     train_dataset = get_embeddings(train = True)
     test_dataset = get_embeddings(train = False)
@@ -119,13 +149,13 @@ class MyModule(nn.Module):
     def __init__(self, dropout=True):
         super().__init__()
 
-        self.fc1 = nn.Sequential(nn.Linear(768, 400), nn.BatchNorm1d(400), nn.ReLU())
-        self.fc2 = nn.Sequential(nn.Linear(400, 200), nn.BatchNorm1d(200), nn.ReLU())
+        self.fc1 = nn.Sequential(nn.Linear(768, 500), nn.BatchNorm1d(500), nn.ReLU())
+        self.fc2 = nn.Sequential(nn.Linear(500, 300), nn.BatchNorm1d(300), nn.ReLU())
 
         if dropout:
-            self.fc3 = nn.Sequential(nn.Dropout(),nn.Linear(200, 1))
+            self.fc3 = nn.Sequential(nn.Dropout(),nn.Linear(300, 1))
         else:
-            self.fc3 = nn.Linear(200, 1)
+            self.fc3 = nn.Linear(300, 1)
 
     def forward(self, x):
         x = x.view(-1, 768)
@@ -133,6 +163,7 @@ class MyModule(nn.Module):
         x = self.fc1(x)
         x = self.fc2(x)
         x = self.fc3(x)
+        x = F.relu(x)
         return x
     
 def main():
